@@ -1,0 +1,26 @@
+name: Relatar bug / Bug report
+description: Um problema reproduzível, sem credenciais ou dados pessoais.
+body:
+  - type: markdown
+    attributes:
+      value: "Não inclua tokens, códigos OAuth, chaves SSH, logs completos ou imagens privadas. Revise qualquer anexo."
+  - type: input
+    id: version
+    attributes:
+      label: Versão do aplicativo
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Windows, WSL e hardware solicitado
+  - type: textarea
+    id: steps
+    attributes:
+      label: Como reproduzir, esperado e observado
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Trecho do erro, com dados sensíveis removidos

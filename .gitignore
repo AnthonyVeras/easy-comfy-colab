@@ -1,0 +1,44 @@
+# Runtime data and personal content
+/input/
+/output/
+/user/
+/accounts/
+/models/
+/logs/
+*.log
+*.pid
+.env
+.env.*
+!.env.example
+*token*.json
+*credential*.json
+*secret*.json
+profiles.json
+sessions.json
+runtime.json
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+*.safetensors
+*.gguf
+*.ckpt
+*.pth
+*.part
+# Build/cache, never distributed through git
+.venv*/
+venv/
+__pycache__/
+*.py[cod]
+.ruff_cache/
+.pytest_cache/
+build/
+dist/
+release/
+/Easy Comfy Colab/
+*.spec
+*.exe
+*.zip
+*.lnk
+.DS_Store
+Thumbs.db

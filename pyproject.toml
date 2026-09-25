@@ -1,0 +1,9 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["F"]
+
+[tool.ruff.lint.per-file-ignores]
+"app/backend.py" = ["F401"] # re-exports app_data_dir for the UI services
