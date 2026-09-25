@@ -11,6 +11,10 @@ Verificação local da edição 2.0.1, em 25/09/2026. Nenhuma VM foi alocada par
 | Cancelamento de início e término de processos filhos | Teste Bash simulado passou no WSL |
 | Sintaxe dos scripts Bash e PowerShell | Aprovada |
 | Ruff: nomes, imports e erros estáticos | Aprovado |
+| Build Windows e abertura do executável em modo de prévia | Aprovados, sem autenticação ou VM |
+| Política da árvore pública | 64 arquivos rastreados, sem achados |
+| Gitleaks 8.30.1 no histórico e no pacote Windows | Nenhum segredo detectado |
+| Marcadores pessoais em fontes, binários e código Python empacotado | Nenhum achado |
 
 Os testes de Drive usam respostas simuladas; não comprovam a cópia real de arquivos entre contas. Os testes de SSH não comprovam a disponibilidade do Colab. O build Windows comprova o empacotamento local; a instalação integral em uma máquina nova ainda precisa de validação.
 
