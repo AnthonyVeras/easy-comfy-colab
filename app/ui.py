@@ -275,6 +275,16 @@ class Shell:
             "G4: até 96 GB de VRAM · GPU e consumo dependem do Colab.\nCPU: prepara downloads sem iniciar o ComfyUI.",
             muted=True,
         )
+        self.label(section, "Onde salvar os resultados", muted=True)
+        row = self.row(section)
+        self.output_choice = self.choice(
+            row, values=["Google Drive", "Meu PC"], width=180,
+            command=self._choose_output,
+        )
+        self.output_choice.pack(side="left", padx=(0, 8))
+        self.button(row, "Abrir outputs no PC", lambda: self._open_folder("output"), width=180).pack(side="left")
+        self.output_hint = self.label(section, "", muted=True)
+        self.output_sync_label = self.label(section, "", muted=True)
         row = self.row(section)
         self.start_button = self.button(row, "Iniciar sessão", self._start, True, 170)
         self.start_button.pack(side="left", padx=(0, 8))

@@ -287,7 +287,15 @@ def metrics():
             )
     except (OSError, ValueError, subprocess.TimeoutExpired):
         pass
+    output_mode = "drive"
+    if MODE == "comfy":
+        try:
+            import folder_paths
+            output_mode = "pc" if str(folder_paths.get_output_directory()).startswith("/content/comfy-colab/output-pc/") else "drive"
+        except ImportError:
+            output_mode = "unknown"
     return {
+        "output_mode": output_mode,
         "mode": MODE,
         "cpu_percent": psutil.cpu_percent(interval=0.2),
         "ram_total": ram.total,

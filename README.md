@@ -26,6 +26,7 @@ A instalação remota aproveita o [ComfyUI-Easy-Install](https://github.com/Tavr
 | Área | Recursos |
 | --- | --- |
 | Sessão | Iniciar/encerrar VM, reconectar, abrir ComfyUI e reiniciar apenas o servidor |
+| Resultados | Escolher Drive ou PC; cópia automática e verificação antes de desligar no modo PC |
 | Hardware | Seleção de G4, A100, L4, T4 ou CPU para downloads; leitura da GPU efetivamente recebida |
 | Modelos | URLs Hugging Face/Civitai, categorias, fila, 1–6 downloads paralelos, cancelamento e retomada |
 | Contas e Drive | Perfis separados, cópia de pasta entre contas e biblioteca de modelos compartilhada |
@@ -133,6 +134,18 @@ O aplicativo é distribuído **sem contas, tokens, chaves privadas, modelos ou c
 
 Fechar o navegador não encerra a VM. Ao fechar o aplicativo com uma sessão ativa, escolha se deseja encerrá-la ou mantê-la. Uma sessão mantida pode continuar consumindo créditos. A automação de inatividade exige que o aplicativo permaneça aberto.
 
+### Salvar resultados no PC ou no Drive
+
+Na aba **Sessão → Onde salvar os resultados**, escolha **Google Drive** ou **Meu PC**. A preferência é salva por conta. Para uma sessão já aberta, a escolha só entra em vigor ao clicar **Reiniciar ComfyUI**: a VM e sua GPU permanecem alocadas; o servidor reinicia e recarrega os modelos quando necessário. Selecionar a opção não reinicia nada automaticamente.
+
+- **Drive:** o ComfyUI grava em `Meu Drive/ComfyColab/output`.
+- **PC:** o ComfyUI grava primeiro no disco temporário da VM, fora do Drive. Com o aplicativo aberto, uma cópia automática é tentada a cada 15 segundos quando a fila está vazia. Arquivos vão para `%USERPROFILE%/Comfy Colab Results/output/<identificador-da-VM>/`; essa separação evita sobrescrever resultados de VMs anteriores.
+- **Abrir outputs no PC** abre a pasta local. A pasta `input` fica ao lado; seus arquivos são enviados ao iniciar/reconectar.
+- Contas adicionais usam `Comfy Colab Results/accounts/<perfil>/input` e `output`. Arquivos antigos nas pastas do aplicativo não são movidos ou apagados.
+- Antes de encerrar uma VM com outputs temporários, o aplicativo exige fila vazia, pausa o ComfyUI e verifica a cópia final com checksum. Se a cópia falhar, mantém a VM ligada e tenta retomar o servidor. A VM pode continuar consumindo créditos até uma nova tentativa de encerramento.
+
+**Esta opção controla apenas a pasta padrão de resultados.** Entradas, workflows e configurações continuam no Drive; nodes que gravam em caminhos próprios podem ignorar a pasta padrão. Arquivos anteriores no Drive permanecem lá. Fechar o app interrompe as cópias automáticas, e encerrar a VM pelo site do Colab ou perder o runtime pode eliminar resultados ainda não copiados. O modo PC não torna o processamento local: ele continua no Colab.
+
 ### Baixar modelos e LoRAs por URL
 
 Cadastre seu token de leitura do Hugging Face ou chave do Civitai em **Configurações**. Depois, na aba **Modelos**, cole um link de arquivo por linha, escolha a categoria e clique **Adicionar à fila**.
@@ -189,14 +202,16 @@ Em **Configurações**, ative um limite de inatividade se quiser. Ele vem desati
 | Local | Conteúdo | Sobrevive ao encerramento da VM? |
 | --- | --- | --- |
 | Google Drive: `ComfyColab/models` | Modelos e parciais | Sim |
-| Google Drive: `ComfyColab/input`, `output`, `user` | Entradas, imagens, workflows e configurações | Sim |
+| Google Drive: `ComfyColab/input`, `output`, `user` | Entradas, workflows, configurações e outputs no modo Drive | Sim |
+| VM: `/content/comfy-colab/output-pc` | Outputs do modo PC antes de serem copiados | Não |
+| Notebook: `Comfy Colab Results/input`, `output` na pasta do usuário | Entradas locais e resultados copiados | Sim |
 | Google Drive: `ComfyColab/.cache/pip` | Cache de pacotes | Sim, ocupa espaço no Drive |
 | VM: `/content/comfy-colab` | Instalação, ambiente Python, processos e logs temporários | Não |
 | Notebook: `input`, `output`, `user`, `accounts` | Arquivos locais e cópias sincronizadas | Sim |
 | Windows: `%LOCALAPPDATA%/EasyComfyColab` | Perfis, preferências, histórico e tokens protegidos | Sim |
 | WSL: `~/.local/share/easy-comfy-colab` | CLI e autorizações por perfil | Sim |
 
-Ao encerrar, o aplicativo tenta copiar resultados e workflows para o notebook por até 60 segundos. Se a cópia ficar incompleta, os originais permanecem no Drive. Modelos não são baixados automaticamente para o notebook. Custom nodes instalados manualmente só no disco temporário precisam ser reinstalados na próxima VM; mantenha nodes próprios em `custom_nodes/` quando apropriado.
+Ao encerrar no modo Drive, o aplicativo tenta copiar resultados e workflows para o notebook por até 60 segundos. Se a cópia ficar incompleta, os originais permanecem no Drive. No modo PC, a cópia final precisa concluir antes de desligar. Modelos não são baixados automaticamente para o notebook. Custom nodes instalados manualmente só no disco temporário precisam ser reinstalados na próxima VM; mantenha nodes próprios em `custom_nodes/` quando apropriado.
 
 ## Comfy MCP
 

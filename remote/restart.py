@@ -7,6 +7,7 @@ import os
 import signal
 import socket
 import subprocess
+import sys
 import time
 from pathlib import Path
 from urllib.request import urlopen
@@ -23,6 +24,8 @@ BASE = "http://127.0.0.1:8188/"
 
 
 def main() -> None:
+    if len(sys.argv) > 1 and sys.argv[1] not in {"pc", "drive"}:
+        raise SystemExit("Destino de outputs inválido.")
     if not PIDFILE.is_file() or not PYTHON.is_file() or not DRIVE.is_dir():
         raise SystemExit("Servidor ou Drive indisponível. Inicie o ComfyUI primeiro.")
     with urlopen(BASE + "queue", timeout=8) as response:
@@ -50,10 +53,16 @@ def main() -> None:
     else:
         raise SystemExit("O servidor anterior não liberou a porta 8188.")
 
+    sys.path.insert(0, str(ROOT))
+    if (ROOT / "output_storage.py").is_file():
+        from output_storage import prepare
+        output_directory = prepare(sys.argv[1] if len(sys.argv) > 1 else None)
+    else:
+        output_directory = DRIVE / "output"
     command = [
         str(PYTHON), "main.py", "--listen", "127.0.0.1", "--port", "8188", "--enable-manager",
         "--input-directory", str(DRIVE / "input"),
-        "--output-directory", str(DRIVE / "output"),
+        "--output-directory", str(output_directory),
         "--user-directory", str(DRIVE / "user"),
     ]
     with LOG.open("ab") as output:

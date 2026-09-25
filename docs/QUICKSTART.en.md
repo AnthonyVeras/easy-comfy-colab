@@ -38,3 +38,11 @@ The local ComfyUI URL is `http://127.0.0.1:18188/`. The optional Comfy MCP endpo
 **Closing the browser does not stop billing.** Use **Encerrar VM**. Usage rate is account-wide, not a guaranteed per-VM bill. Remote installation files are temporary; Drive data survives. The application is not a way to extend Windows RAM with cloud memory.
 
 See the main [README](../README.md), [architecture](ARCHITECTURE.md), [troubleshooting](TROUBLESHOOTING.md), [security policy](../SECURITY.md) and [license notices](../THIRD_PARTY_NOTICES.md) for details.
+
+## Save outputs to your PC (2.0.2)
+
+Choose **Meu PC** under **Sessão → Onde salvar os resultados** before starting. For an existing session, **Reiniciar ComfyUI** applies the choice by restarting only the server; the Colab VM stays allocated. Merely selecting the option does not restart anything.
+
+Outputs stay temporarily on the VM and are copied to `%USERPROFILE%/Comfy Colab Results/output/<VM ID>/` every 15 seconds while the app is open and the queue is idle. The local `input` folder sits alongside `output`. Other accounts have separate subfolders. Before shutting down, the app pauses the idle server and requires a verified final copy; a failed transfer leaves the VM running and attempts to resume the server.
+
+Input uploads and workflows still use Drive. Custom nodes with their own save paths may bypass this setting. Closing the app stops automatic copying; termination from the Colab website or runtime loss can destroy files not yet copied. Existing Drive files are not moved or deleted.

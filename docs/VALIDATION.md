@@ -1,5 +1,9 @@
 # Validação da primeira publicação
 
+## Atualização 2.0.2
+
+A escolha de destino e a persistência ao reiniciar foram verificadas com diretórios temporários. O teste Bash de encerramento confirma que falha na cópia impede desligar a VM e tenta retomar o servidor; cópia aprovada permite encerrar. A VM em uso não foi reiniciada para testar esta atualização. O fluxo de cópia PC ainda não foi validado ponta a ponta em uma sessão real.
+
 Verificação local da edição 2.0.1, em 25/09/2026. Nenhuma VM foi alocada para preparar esta publicação.
 
 | Verificação | Resultado |

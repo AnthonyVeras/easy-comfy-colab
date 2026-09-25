@@ -52,10 +52,13 @@ class Dashboard(Shell, SessionWindow):
         self.idle_countdown = None
         self.idle_dialog = None
         self.low_alerted = False
+        self.output_sync_pending = False
+        self.had_pc_outputs = False
         super().__init__()
         self.title("Easy Comfy Colab — " + VERSION)
         self.after(500, self._tick)
         self.after(1000, self._telemetry)
+        self.after(4000, self._sync_outputs)
         self.bind("<F5>", lambda _: self._refresh_async())
         self.bind_all("<Control-KeyPress>", self._keyboard_navigation, add="+")
         self.after(300, self.focus_set)
@@ -143,6 +146,8 @@ class Dashboard(Shell, SessionWindow):
             self.hf_token.delete(0, "end")
             self.civit_token.delete(0, "end")
             self.remote_metrics = None
+            self.had_pc_outputs = False
+            self.output_sync_label.configure(text="")
             self.jobs = []
             self.models = []
             self.guard.since = None
@@ -197,6 +202,18 @@ class Dashboard(Shell, SessionWindow):
                 border_width=2 if selected else 1,
             )
         available = not self.busy and not self.setup_error
+        self.output_choice.set("Meu PC" if p.output_mode == "pc" else "Google Drive")
+        self.output_choice.configure(state="normal" if not self.busy and (s.status_known or not p.connected) else "disabled")
+        active_mode = (self.remote_metrics or {}).get("output_mode")
+        if ready and active_mode is None:
+            output_hint = "Destino ativo ainda não confirmado; sessões anteriores usam Drive. Reiniciar ComfyUI aplica a escolha sem desligar a VM."
+        elif ready and active_mode != p.output_mode:
+            output_hint = "Destino atual: " + ("PC" if active_mode == "pc" else "Drive") + ". A escolha será aplicada ao clicar Reiniciar ComfyUI; a VM continua ligada."
+        elif p.output_mode == "pc":
+            output_hint = "PC: download automático com o app aberto e a fila vazia. Até copiar, o arquivo existe só no disco temporário da VM."
+        else:
+            output_hint = "Drive: os resultados são gravados diretamente em ComfyColab/output."
+        self.output_hint.configure(text=output_hint + " A opção controla outputs; entradas e workflows continuam no Drive.")
         start_text = (
             "Conectar conta"
             if not p.connected
@@ -293,6 +310,37 @@ class Dashboard(Shell, SessionWindow):
         if operation == "start" and code == 0:
             self.after(3000, self._load_library)
 
+    def _choose_output(self, value):
+        if self.busy:
+            return
+        profile = self.store.current()
+        profile.output_mode = "pc" if value == "Meu PC" else "drive"
+        self.store.save()
+        self._render()
+
+    def _sync_outputs(self):
+        wanted = self.store.current().output_mode == "pc" or self.had_pc_outputs
+        if wanted and not self.offline and not self.output_sync_pending and not self.busy and self.snapshot.session_exists and self.snapshot.local_ready:
+            profile = self.store.current()
+            # Also drain PC files after switching back to Drive in the same VM.
+            self.output_sync_pending = True
+            def work():
+                try:
+                    result = self.gateway.run(profile, "bash", f"{self.gateway.linux_root()}/app/output_control.sh", timeout=600)
+                    text = (result.stdout if result.returncode == 0 else result.stderr).strip()
+                    if result.returncode:
+                        text = "Outputs não confirmados no PC. A VM precisa permanecer ligada. " + text[-200:]
+                except Exception:
+                    text = "Sem confirmação da cópia de outputs. Reconecte antes de encerrar."
+                self.events.put(("ui", lambda: self._outputs_synced(profile.id, text)))
+            threading.Thread(target=work, daemon=True).start()
+        self.after(15000, self._sync_outputs)
+
+    def _outputs_synced(self, profile_id, text):
+        self.output_sync_pending = False
+        if profile_id == self.store.selected:
+            self.output_sync_label.configure(text=text)
+
     def _tick(self):
         self.elapsed_label.configure(
             text="Tempo desta operação: "
@@ -370,6 +418,8 @@ class Dashboard(Shell, SessionWindow):
         if profile != self.store.selected:
             return
         self.remote_metrics = remote
+        if (remote or {}).get("output_mode") == "pc":
+            self.had_pc_outputs = True
         if jobs is not None:
             self.jobs = jobs
             self.download_active = any(

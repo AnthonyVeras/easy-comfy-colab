@@ -10,6 +10,8 @@ PROJECT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$PROJECT/app/environment.sh"
 ALLOCATION_MARKER="$STATE/allocation.json"
 GPU="${COMFY_GPU:-A100}"
+OUTPUT_MODE="${COMFY_OUTPUT_MODE:-drive}"
+[[ "$OUTPUT_MODE" == pc || "$OUTPUT_MODE" == drive ]] || { echo "Destino de outputs inválido." >&2; exit 1; }
 SECONDS=0
 MODE=comfy
 [[ "$GPU" != CPU ]] || MODE=downloads
@@ -19,7 +21,9 @@ if [[ "$PROFILE_ID" == default ]]; then
 else
   LOCAL_DATA="$PROJECT/accounts/$PROFILE_ID"
 fi
-mkdir -p "$STATE" "$LOCAL_DATA/input" "$LOCAL_DATA/output" "$PROJECT/custom_nodes" "$LOCAL_DATA/user"
+MEDIA_ROOT="$LOCAL_DATA"
+[[ -z "${COMFY_MEDIA_ROOT:-}" ]] || MEDIA_ROOT="$(wslpath -a "$COMFY_MEDIA_ROOT")"
+mkdir -p "$STATE" "$MEDIA_ROOT/input" "$MEDIA_ROOT/output" "$PROJECT/custom_nodes" "$LOCAL_DATA/user"
 exec 9>"$STATE/start.lock"
 if ! flock -n 9; then
   echo 'Já existe uma inicialização em andamento para esta conta.' >&2
@@ -53,6 +57,8 @@ copy_to_vm() {
 if transport_ready; then
   if curl --silent --fail --max-time 5 http://127.0.0.1:18188/system_stats >/dev/null && \
      { [[ "$MODE" == downloads ]] || python3 -c 'import socket; s=socket.create_connection(("127.0.0.1", 18189), 2); s.close()' 2>/dev/null; }; then
+    active_output="$(ssh "${ssh_options[@]}" root@colab 'cat /content/comfy-colab/output-mode 2>/dev/null || echo drive')"
+    [[ "$active_output" == "$OUTPUT_MODE" ]] || { echo 'A sessão ativa usa outro destino. A preferência será aplicada na próxima sessão.' >&2; exit 1; }
     echo 'ComfyUI já está aberto em http://127.0.0.1:18188/'
     echo 'Comfy MCP já está acessível em http://127.0.0.1:18189/mcp'
     exit 0
@@ -144,10 +150,11 @@ else
   echo 'Sincronizando custom nodes locais...'
   rsync -rtc --exclude __pycache__ --exclude .git -e "$STATE/ssh-wrapper.sh" "$PROJECT/custom_nodes/" root@colab:/content/comfy-colab/ComfyUI-Easy-Install/ComfyUI/custom_nodes/
   echo 'Enviando entradas e workflows alterados...'
-  sync_dir "$LOCAL_DATA/input" /content/drive/MyDrive/ComfyColab/input
+  sync_dir "$MEDIA_ROOT/input" /content/drive/MyDrive/ComfyColab/input
   sync_dir "$LOCAL_DATA/user" /content/drive/MyDrive/ComfyColab/user
+  copy_to_vm "$PROJECT/remote/output_storage.py" root@colab:/content/comfy-colab/output_storage.py
   echo 'Iniciando servidor ComfyUI...'
-  ssh "${ssh_options[@]}" root@colab 'bash -s' < "$PROJECT/remote/run.sh"
+  ssh "${ssh_options[@]}" root@colab "COMFY_OUTPUT_MODE=$OUTPUT_MODE bash -s" < "$PROJECT/remote/run.sh"
   echo 'Preparando Comfy MCP oficial na VM...'
   copy_to_vm "$PROJECT/remote/mcp_http.py" root@colab:/content/comfy-colab/mcp_http.py
   ssh "${ssh_options[@]}" root@colab 'python3 /content/comfy-colab/mcp_http.py'

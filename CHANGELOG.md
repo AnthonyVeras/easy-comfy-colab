@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.2 — destino dos resultados
+
+- Escolha por conta entre outputs no Drive e no PC, aplicada no início ou no reinício apenas do ComfyUI.
+- Cópia automática de outputs temporários com o aplicativo aberto e fila vazia.
+- Encerramento bloqueado se a cópia final verificada falhar; tentativa de retomar o servidor pausado.
+- Pastas locais `Comfy Colab Results/input` e `output`, com separação por conta e VM.
+- Sem migração ou exclusão dos arquivos antigos no Drive ou nas pastas anteriores.
+
 ## 2.0.1 — primeira edição comunitária
 
 - Publicação do aplicativo Windows com sete abas, downloads paralelos por URL, perfis de conta, monitor, histórico, diagnóstico de workflows e controles de sessão.

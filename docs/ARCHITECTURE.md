@@ -82,3 +82,11 @@ Compartilhar biblioteca concede edição a uma pasta e cria um atalho no destino
 As portas `18188` e `18189` escutam apenas no loopback. Não há autenticação adicional do aplicativo nesses serviços locais; processos no mesmo computador podem acessá-los. Nunca transforme os túneis em serviços públicos sem projetar autenticação e controle de acesso próprios.
 
 Custom nodes executam código Python na VM e podem acessar o Drive montado. Instalar um node envolve confiar no seu mantenedor. O MCP também oferece controle do ambiente remoto; ferramentas e clientes conectados precisam ser confiáveis.
+
+## Destino de outputs (2.0.2)
+
+`Profile.output_mode` persiste a preferência por conta; `remote/output_storage.py` escolhe o diretório usado tanto por `run.sh` quanto por `restart.py`. No modo PC, o caminho usa um identificador único por VM em `/content/comfy-colab/output-pc/`, separado do Drive. O reinício apenas do servidor aplica mudanças em sessões existentes.
+
+`app/output_control.sh` reutiliza o master SSH para cópias rsync e reinício. A interface agenda cópias sem bloquear a thread gráfica. `stop.sh` copia workflows, pausa o servidor ocioso, aguarda o lock de cópia e exige checksum na cópia final de outputs temporários. Só então encerra a VM. Falhas mantêm a VM e acionam uma tentativa de SIGCONT. O desligamento externo e a expiração da VM não passam por essa proteção.
+
+`Profile.media_data` aponta para `Comfy Colab Results` na pasta do usuário Windows; `COMFY_MEDIA_ROOT` é convertido por `wslpath`. Workflows locais permanecem no diretório anterior. Contas adicionais usam subpastas próprias. O atalho antigo e outputs anteriores não são migrados automaticamente.

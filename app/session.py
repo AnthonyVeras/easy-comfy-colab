@@ -527,16 +527,7 @@ class SessionWindow(ctk.CTk):
         self._launch(
             "restart",
             profile,
-            self.gateway.cli_command(
-                profile,
-                "exec",
-                "-s",
-                "comfy-colab",
-                "-f",
-                f"{self.gateway.linux_root()}/remote/restart.py",
-                "--timeout",
-                "200",
-            ),
+            ("bash", f"{self.gateway.linux_root()}/app/output_control.sh", "restart"),
         )
 
     def _choose_gpu(self, gpu: str) -> None:
@@ -632,7 +623,8 @@ class SessionWindow(ctk.CTk):
         self._render()
 
     def _open_folder(self, subfolder: str) -> None:
-        folder = self.store.current().local_data / subfolder
+        profile = self.store.current()
+        folder = (profile.media_data if subfolder in {"input", "output"} else profile.local_data) / subfolder
         folder.mkdir(parents=True, exist_ok=True)
         os.startfile(folder)
 
@@ -685,7 +677,7 @@ class SessionWindow(ctk.CTk):
             ConfirmDialog(
                 self,
                 "A VM ainda está ligada",
-                "Ela pode continuar usando unidades computacionais. Se o status não carregou, tente encerrá-la antes de sair.",
+                "Ela pode continuar usando unidades computacionais. No modo PC, fechar o app interrompe as cópias automáticas; arquivos ainda só na VM podem se perder quando ela acabar.",
                 [
                     ("Voltar", lambda: None, "secondary"),
                     ("Sair com VM ativa", self.destroy, "secondary"),

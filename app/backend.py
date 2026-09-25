@@ -42,6 +42,12 @@ class Profile:
     sessions_path: str
     gpu: str = "A100"
     connected: bool = False
+    output_mode: str = "drive"
+
+    @property
+    def media_data(self) -> Path:
+        root = Path.home() / "Comfy Colab Results"
+        return root if self.id == "default" else root / "accounts" / self.id
 
     @property
     def local_data(self) -> Path:
@@ -90,6 +96,7 @@ class ProfileStore:
                     raw.get("gpu") if raw.get("gpu") in GPU_CHOICES else "A100"
                 )
                 default.connected = bool(raw.get("connected", False))
+                default.output_mode = "pc" if raw.get("output_mode") == "pc" else "drive"
             elif re.fullmatch(r"[0-9a-f]{16}", str(profile_id)):
                 self.profiles.append(
                     Profile(
@@ -100,6 +107,7 @@ class ProfileStore:
                         sessions_path=f"{PROFILE_ROOT}/{profile_id}/sessions.json",
                         gpu=raw.get("gpu") if raw.get("gpu") in GPU_CHOICES else "A100",
                         connected=bool(raw.get("connected", False)),
+                        output_mode="pc" if raw.get("output_mode") == "pc" else "drive",
                     )
                 )
         wanted = data.get("selected", "default")
@@ -205,6 +213,8 @@ class Gateway:
             "app/wsl_exec.sh",
             "app/drive_transfer.py",
             "remote/download_server.py",
+            "remote/output_storage.py",
+            "app/output_control.sh",
         )
         missing = [name for name in required if not (self.root / name).is_file()]
         if missing:
@@ -240,7 +250,9 @@ class Gateway:
     def args(
         self, profile: Profile, *command: str, gpu: str | None = None
     ) -> list[str]:
-        variables = [f"COMFY_PROFILE_ID={profile.id}", "COMFY_APP_MODE=1"]
+        if profile.output_mode not in {"pc", "drive"}:
+            raise ValueError("Destino de outputs inválido.")
+        variables = [f"COMFY_PROFILE_ID={profile.id}", "COMFY_APP_MODE=1", f"COMFY_OUTPUT_MODE={profile.output_mode}", f"COMFY_MEDIA_ROOT={profile.media_data}"]
         if gpu:
             if gpu not in GPU_CHOICES:
                 raise ValueError("GPU inválida")

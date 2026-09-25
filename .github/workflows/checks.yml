@@ -21,6 +21,7 @@ jobs:
       - run: python -m ruff check app remote tests scripts
       - run: python -m unittest discover -s tests -p test_v2.py -v
       - run: python -m unittest discover -s tests -p test_portability.py -v
+      - run: python -m unittest discover -s tests -p test_output_storage.py -v
       - run: python scripts/check_public_tree.py
       - if: runner.os == 'Linux'
         shell: bash
@@ -28,3 +29,4 @@ jobs:
           find . -path ./.git -prune -o -name '*.sh' -type f -print0 | xargs -0 -n1 bash -n
           bash tests/test_ssh_transport.sh
           bash tests/test_cancel_start.sh
+          bash tests/test_output_stop.sh

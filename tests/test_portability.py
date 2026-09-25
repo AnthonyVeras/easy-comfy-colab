@@ -16,7 +16,7 @@ from runtime_config import app_data_dir, wsl_prefix
 class PortabilityTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
-        self.env = patch.dict(os.environ, {"LOCALAPPDATA": self.temp.name}, clear=True)
+        self.env = patch.dict(os.environ, {"LOCALAPPDATA": self.temp.name, "USERPROFILE": self.temp.name, "HOME": self.temp.name}, clear=True)
         self.env.start()
 
     def tearDown(self):
