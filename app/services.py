@@ -11,7 +11,7 @@ import psutil
 from backend import app_data_dir
 from model_download import _json_request, EXTENSIONS
 
-VERSION = "2.0.6"
+VERSION = "2.0.7"
 DEFAULTS = {"parallel": 3, "idle_minutes": 0, "balance_alert": 20, "auto_open": True, "language": "pt-BR"}
 
 

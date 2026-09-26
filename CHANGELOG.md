@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.7 — correção do seletor de idioma
+
+- Corrige a troca pelo menu Português / English: a limpeza da interface agora remove apenas callbacks globais de rolagem, preservando os timers internos do CustomTkinter e cancelando os timers dos widgets substituídos.
+- Regressão aciona o menu real nos dois sentidos e verifica erros de callback, preservação de campos e ausência de comandos de VM.
+
 ## 2.0.6 — português e inglês
 
 - Seletor Português (Brasil) / English em Configurações, com preferência persistente neste computador.

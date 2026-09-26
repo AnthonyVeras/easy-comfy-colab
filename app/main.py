@@ -973,9 +973,20 @@ class Dashboard(Shell, SessionWindow):
             self.tk.call("bind", "all", sequence, binding)
         for command in self._ui_root_commands:
             self.deletecommand(command)
-        for widget in self.winfo_children():
-            if widget.winfo_toplevel() == self:
-                widget.destroy()
+        widgets = [widget for widget in self.winfo_children() if widget.winfo_toplevel() == self]
+        # CTkTextbox timers survive destroy(); cancel them before command names can be reused.
+        pending = widgets.copy()
+        owners = {}
+        while pending:
+            widget = pending.pop()
+            owners.update((command, widget) for command in widget._tclCommands or ())
+            pending.extend(widget.winfo_children())
+        for timer in self.tk.call("after", "info"):
+            script, _ = self.tk.call("after", "info", timer)
+            if script in owners:
+                owners[script].after_cancel(timer)
+        for widget in widgets:
+            widget.destroy()
         set_language(language)
         self.setup_error = tr(reverse.get(self.setup_error, self.setup_error))
         self._visible_page = None

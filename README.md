@@ -19,7 +19,7 @@ Easy Comfy Colab é um aplicativo Windows para iniciar e gerenciar o **ComfyUI e
 
 A instalação remota aproveita o [ComfyUI-Easy-Install](https://github.com/Tavris1/ComfyUI-Easy-Install). O acesso à VM usa o [Colab CLI oficial](https://github.com/googlecolab/google-colab-cli), executado dentro do WSL2, porque o CLI não oferece suporte nativo a Windows.
 
-> **Versão 2.0.6, experimental.** A edição pública mantém isolamento de credenciais e caminhos configuráveis. Restauração de imagem foi usada na instalação de referência; instalação completa em outros computadores e transferência real entre duas contas ainda precisam de validação pela comunidade. Consulte a [matriz de validação](docs/VALIDATION.md).
+> **Versão 2.0.7, experimental.** A edição pública mantém isolamento de credenciais e caminhos configuráveis. Restauração de imagem foi usada na instalação de referência; instalação completa em outros computadores e transferência real entre duas contas ainda precisam de validação pela comunidade. Consulte a [matriz de validação](docs/VALIDATION.md).
 
 ## O que ele faz
 

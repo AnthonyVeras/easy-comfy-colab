@@ -1,5 +1,12 @@
 # Validação das publicações
 
+## Atualização 2.0.7 — 26/09/2026
+
+- Reproduzido o defeito acionando o menu nativo do Tk: a preferência era salva, mas a exclusão de um callback DPI já expirado interrompia a reconstrução da tela.
+- A limpeza remove apenas callbacks globais de rolagem e cancela timers dos widgets substituídos; mantém os timers de sessão e do CustomTkinter.
+- Cinco regressões gráficas e dois testes de catálogo/persistência passaram. O teste de alternância agora invoca o menu nos dois sentidos e detecta exceções de callback. Ruff aprovado.
+- Executável pessoal 2.0.7 verificado por cliques reais em Português / English, em prévia isolada. Nenhuma VM foi iniciada, reiniciada ou encerrada para essa correção.
+
 ## Atualização 2.0.6 — 26/09/2026
 
 - 46 testes Python locais aprovados: catálogo, placeholders, preferência persistente e inválida, troca de idioma durante operação simulada, campos/aba/rolagem e falha ao salvar.

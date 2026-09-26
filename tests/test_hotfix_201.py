@@ -113,9 +113,11 @@ class NavigationTests(unittest.TestCase):
         app.pages["Configurações"]._parent_canvas.yview_moveto(0.3)
         before = app.pages["Configurações"]._parent_canvas.yview()[0]
         command_count = len(app._tclCommands)
-        with patch.object(app, "_launch") as launch, patch.object(app.gateway, "run") as run:
-            app._change_language("English")
+        with patch.object(app, "_launch") as launch, patch.object(app.gateway, "run") as run, \
+                patch.object(app, "report_callback_exception") as callback_error:
+            app.language_choice._dropdown_menu.invoke(1)
             app.update()
+            callback_error.assert_not_called()
             self.assertEqual(get_language(), "en")
             self.assertEqual(Preferences().values["language"], "en")
             self.assertEqual(app.current_page, "Configurações")
@@ -136,8 +138,9 @@ class NavigationTests(unittest.TestCase):
             app.busy = None
             app._choose_output("My PC")
             self.assertEqual(app.store.current().output_mode, "pc")
-            app._change_language("Português (Brasil)")
+            app.language_choice._dropdown_menu.invoke(0)
             app.update()
+            callback_error.assert_not_called()
             self.assertEqual(app.page_title.cget("text"), "Configurações")
             self.assertEqual(app.download_tree.item("example", "values")[1], "Na fila")
             self.assertEqual(app.output_choice.get(), "Meu PC")

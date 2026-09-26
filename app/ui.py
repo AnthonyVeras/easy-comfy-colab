@@ -261,7 +261,12 @@ class Shell:
         )
         self.notice_label.grid(row=2, column=1, sticky="ew", padx=26, pady=12)
         self.show_page("Sessão")
-        self._ui_root_commands = set(self._tclCommands or ()) - commands_before
+        bindings = "\n".join(self.bind_all(sequence) for sequence in self._scroll_bindings)
+        # Own only global scroll callbacks, never CustomTkinter's transient timers.
+        self._ui_root_commands = {
+            command for command in set(self._tclCommands or ()) - commands_before
+            if command in bindings
+        }
 
     def _build_session(self, parent):
         section = self.section(parent, tr("Ambiente de trabalho"))
