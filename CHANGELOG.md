@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.6 — português e inglês
+
+- Seletor Português (Brasil) / English em Configurações, com preferência persistente neste computador.
+- Tradução da interface, tabelas, confirmações, mensagens locais e progresso resumido das operações. Créditos usam o formato numérico do idioma escolhido.
+- Troca imediata preserva sessão, autorizações pendentes, campos preenchidos, seleções e aba/rolagem; não reinicia ComfyUI nem a VM.
+- Catálogo local sem dependências novas. Logs técnicos remotos e conteúdo do usuário mantêm o idioma original.
+- Testes de catálogo, persistência, alternância com operação simulada, falha de salvamento e preservação de comandos.
+
 ## 2.0.5 — imagem de instalação no Drive e cache de modelos
 
 Esta publicação reúne as melhorias desenvolvidas nas versões pessoais 2.0.3–2.0.5.

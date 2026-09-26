@@ -1,6 +1,7 @@
 """Downloads de modelos na VM e credenciais protegidas pelo usuário do Windows."""
 
 from __future__ import annotations
+from i18n import tr
 
 import base64
 import ctypes
@@ -44,7 +45,7 @@ class _Blob(ctypes.Structure):
 
 def _protect(data: bytes, decrypt: bool = False) -> bytes:
     if not hasattr(ctypes, "windll"):
-        raise OSError("O armazenamento seguro exige Windows.")
+        raise OSError(tr("O armazenamento seguro exige Windows."))
     input_buffer = ctypes.create_string_buffer(data)
     source = _Blob(len(data), ctypes.cast(input_buffer, ctypes.POINTER(ctypes.c_byte)))
     result = _Blob()
@@ -118,23 +119,23 @@ def prepare_download(url: str, name: str, category: str) -> tuple[str, str, str,
         or parts.port not in (None, 443)
     ):
         raise ValueError(
-            "Use um link HTTPS de arquivo do Hugging Face ou da API do Civitai."
+            tr("Use um link HTTPS de arquivo do Hugging Face ou da API do Civitai.")
         )
     if re.search(r"(?:^|&)(?:token|api_key|access_token)=", parts.query, re.IGNORECASE):
-        raise ValueError("Coloque a credencial no campo próprio, fora da URL.")
+        raise ValueError(tr("Coloque a credencial no campo próprio, fora da URL."))
     if host == "huggingface.co":
         path = parts.path.replace("/blob/", "/resolve/", 1)
         if "/resolve/" not in path:
             raise ValueError(
-                "No Hugging Face, copie o link de um arquivo específico do repositório."
+                tr("No Hugging Face, copie o link de um arquivo específico do repositório.")
             )
         url = urlunsplit((parts.scheme, parts.netloc, path, parts.query, ""))
     elif not re.fullmatch(r"/api/download/models/\d+", parts.path.rstrip("/")):
         raise ValueError(
-            "No Civitai, use o link de download da versão: /api/download/models/ID."
+            tr("No Civitai, use o link de download da versão: /api/download/models/ID.")
         )
     if category not in CATEGORIES:
-        raise ValueError("Escolha uma pasta de modelos válida.")
+        raise ValueError(tr("Escolha uma pasta de modelos válida."))
     name = name.strip()
     if not name and host == "huggingface.co":
         from urllib.parse import unquote
@@ -147,10 +148,10 @@ def prepare_download(url: str, name: str, category: str) -> tuple[str, str, str,
         or "\\" in name
         or any(ord(c) < 32 for c in name)
     ):
-        raise ValueError("Informe o nome do arquivo, incluindo a extensão.")
+        raise ValueError(tr("Informe o nome do arquivo, incluindo a extensão."))
     if Path(name).suffix.lower() not in EXTENSIONS:
         raise ValueError(
-            "Formato não aceito. Use um arquivo de modelo, como .safetensors ou .gguf."
+            tr("Formato não aceito. Use um arquivo de modelo, como .safetensors ou .gguf.")
         )
     return url, name, category, PROVIDERS[host]
 
@@ -171,10 +172,10 @@ def _json_request(path: str, payload: dict | None = None) -> dict:
             error = json.load(exc).get("error", "")
         except (ValueError, OSError):
             error = ""
-        raise RuntimeError(error or f"Erro HTTP {exc.code} no ComfyUI.") from None
+        raise RuntimeError(error or tr("Erro HTTP {p0} no ComfyUI.", p0=exc.code)) from None
     except URLError as exc:
         raise RuntimeError(
-            f"Não foi possível acessar o ComfyUI: {exc.reason}"
+            tr("Não foi possível acessar o ComfyUI: {p0}", p0=exc.reason)
         ) from None
 
 

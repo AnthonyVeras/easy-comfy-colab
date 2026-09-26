@@ -56,3 +56,7 @@ Use **Sessão → Atualizar imagem do Drive** to save newly installed nodes and 
 **Modelos → Carregamento rápido** offers a temporary VM disk cache and optional bounded RAM pre-reading. Select files manually or from a workflow, then prepare them. Original models remain on Drive. RAM pre-reading uses the Linux page cache, not pinned memory or preloaded VRAM. Its first transfer still takes time.
 
 The reference installation's user reported a reduction from about 17 to 4 minutes. This is an observed result, not a startup-time guarantee. See [validation](VALIDATION.md).
+
+## App language (2.0.6)
+
+Open **Configurações → Idioma / Language** and choose **English**. The interface switches immediately, remembers your choice, and preserves the active session and form fields. No ComfyUI or VM restart is needed. Remote technical logs keep their original language; configure the ComfyUI editor language separately in ComfyUI.

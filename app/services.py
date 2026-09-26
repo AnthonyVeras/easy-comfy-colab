@@ -1,6 +1,7 @@
 """Serviços locais, persistência e inspeção de workflows da interface v2."""
 
 from __future__ import annotations
+from i18n import LANGUAGES, tr
 import json
 import os
 import math
@@ -10,8 +11,8 @@ import psutil
 from backend import app_data_dir
 from model_download import _json_request, EXTENSIONS
 
-VERSION = "2.0.5"
-DEFAULTS = {"parallel": 3, "idle_minutes": 0, "balance_alert": 20, "auto_open": True}
+VERSION = "2.0.6"
+DEFAULTS = {"parallel": 3, "idle_minutes": 0, "balance_alert": 20, "auto_open": True, "language": "pt-BR"}
 
 
 def read_json(path, fallback):
@@ -53,6 +54,8 @@ class Preferences:
                     pass
             if isinstance(data.get("auto_open"), bool):
                 self.values["auto_open"] = data["auto_open"]
+            if isinstance(data.get("language"), str) and data["language"] in LANGUAGES:
+                self.values["language"] = data["language"]
 
     def save(self):
         write_json(self.path, self.values)
@@ -145,10 +148,10 @@ def release_vram():
     queue = _json_request("queue")
     if "queue_running" not in queue or "queue_pending" not in queue:
         raise RuntimeError(
-            "Não foi possível verificar a fila. Atualize e tente novamente."
+            tr("Não foi possível verificar a fila. Atualize e tente novamente.")
         )
     if queue["queue_running"] or queue["queue_pending"]:
-        raise RuntimeError("Aguarde a fila terminar antes de liberar a VRAM.")
+        raise RuntimeError(tr("Aguarde a fila terminar antes de liberar a VRAM."))
     return _json_request("free", {"unload_models": True, "free_memory": True})
 
 
@@ -156,7 +159,7 @@ def check_workflow(path, info, models):
     """Percorre UI, subgrafos e formato API. Não executa o workflow."""
     data = read_json(path, None)
     if not isinstance(data, dict):
-        raise ValueError("Selecione um workflow JSON válido.")
+        raise ValueError(tr("Selecione um workflow JSON válido."))
     nodes = []
 
     def walk(obj):
@@ -189,7 +192,7 @@ def check_workflow(path, info, models):
         ):
             key = ("node", kind)
             if key not in seen:
-                results.append(("Node ausente", kind, "Instale pelo Manager na VM."))
+                results.append((tr("Node ausente"), kind, tr("Instale pelo Manager na VM.")))
                 seen.add(key)
         values = node.get("widgets_values", node.get("inputs", {}))
 
@@ -217,14 +220,14 @@ def check_workflow(path, info, models):
                 and key not in seen
             ):
                 results.append(
-                    ("Modelo ausente", value, "Adicione o link na aba Modelos.")
+                    (tr("Modelo ausente"), value, tr("Adicione o link na aba Modelos."))
                 )
                 seen.add(key)
     return results or [
         (
-            "Verificação concluída",
-            f"{len(nodes)} nodes inspecionados",
-            "Nenhuma dependência ausente identificada. Não substitui um teste de execução.",
+            tr("Verificação concluída"),
+            tr("{count} nodes inspecionados", count=len(nodes)),
+            tr("Nenhuma dependência ausente identificada. Não substitui um teste de execução."),
         )
     ]
 
@@ -233,7 +236,7 @@ def workflow_cache_selection(path, models):
     """Sugere arquivos existentes, sem adivinhar nomes ambíguos nem executar nodes."""
     data = read_json(path, None)
     if not isinstance(data, dict):
-        raise ValueError("Selecione um workflow JSON válido.")
+        raise ValueError(tr("Selecione um workflow JSON válido."))
     names = set()
 
     def strings(value):
@@ -268,7 +271,7 @@ def workflow_cache_selection(path, models):
         if len(matches) == 1:
             selected.add(matches[0]["category"] + "/" + matches[0]["name"])
         else:
-            unresolved.append(name + (" (ambíguo)" if matches else " (ausente)"))
+            unresolved.append(name + (tr(" (ambíguo)") if matches else tr(" (ausente)")))
     return selected, unresolved
 
 

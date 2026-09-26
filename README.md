@@ -19,7 +19,7 @@ Easy Comfy Colab é um aplicativo Windows para iniciar e gerenciar o **ComfyUI e
 
 A instalação remota aproveita o [ComfyUI-Easy-Install](https://github.com/Tavris1/ComfyUI-Easy-Install). O acesso à VM usa o [Colab CLI oficial](https://github.com/googlecolab/google-colab-cli), executado dentro do WSL2, porque o CLI não oferece suporte nativo a Windows.
 
-> **Versão 2.0.5, experimental.** A edição pública mantém isolamento de credenciais e caminhos configuráveis. Restauração de imagem foi usada na instalação de referência; instalação completa em outros computadores e transferência real entre duas contas ainda precisam de validação pela comunidade. Consulte a [matriz de validação](docs/VALIDATION.md).
+> **Versão 2.0.6, experimental.** A edição pública mantém isolamento de credenciais e caminhos configuráveis. Restauração de imagem foi usada na instalação de referência; instalação completa em outros computadores e transferência real entre duas contas ainda precisam de validação pela comunidade. Consulte a [matriz de validação](docs/VALIDATION.md).
 
 ## O que ele faz
 
@@ -37,6 +37,14 @@ A instalação remota aproveita o [ComfyUI-Easy-Install](https://github.com/Tavr
 | Créditos | Saldo, CU/h da conta, autonomia estimada, aviso de saldo e histórico observado |
 | Economia | Encerramento opcional por inatividade, com verificação da fila e dos downloads |
 | Integrações | Servidor Comfy MCP na VM, disponível por túnel local |
+
+## Idioma / Language
+
+Em **Configurações → Idioma / Language**, escolha **Português (Brasil)** ou **English**. A escolha é salva neste computador e aplicada imediatamente, sem reiniciar o ComfyUI ou a VM.
+
+Go to **Settings → Language / Idioma** to switch between **English** and **Português (Brasil)**. The app remembers your choice on this computer. Forms and the active session are preserved.
+
+A tradução cobre a interface, os avisos e as confirmações do aplicativo. Logs técnicos recebidos do Colab, instaladores e custom nodes permanecem no idioma original. O idioma do editor ComfyUI é configurado separadamente nele.
 
 ## Como funciona
 

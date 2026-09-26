@@ -1,5 +1,7 @@
 """Componentes e telas do Easy Comfy Colab."""
 
+from i18n import LANGUAGES, tr
+
 from tkinter import ttk
 import os
 import webbrowser
@@ -22,7 +24,7 @@ class Shell:
     def label(self, parent, text, heading=False, muted=False):
         w = ctk.CTkLabel(
             parent,
-            text=text,
+            text=tr(text),
             font=font(20 if heading else 13, "bold" if heading else "normal"),
             text_color=COLORS["muted" if muted else "text"],
             anchor="w",
@@ -35,7 +37,7 @@ class Shell:
     def button(self, parent, text, command, primary=False, width=140):
         w = ctk.CTkButton(
             parent,
-            text=text,
+            text=tr(text),
             command=command,
             height=38,
             width=width,
@@ -128,7 +130,7 @@ class Shell:
             frame, columns=columns, show="headings", height=height, selectmode="browse"
         )
         for name, width in zip(columns, widths):
-            tree.heading(name, text=name)
+            tree.heading(name, text=tr(name))
             tree.column(name, width=width, minwidth=70, stretch=(name == columns[0]))
         tree.grid(row=0, column=0, sticky="nsew")
         scroll = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
@@ -147,6 +149,11 @@ class Shell:
             )
 
     def _build_ui(self):
+        # CTkScrollableFrame registers global callbacks on the root, not on itself.
+        commands_before = set(self._tclCommands or ())
+        self._scroll_bindings = {sequence: self.bind_all(sequence) for sequence in (
+            "<MouseWheel>", "<KeyPress-Shift_L>", "<KeyPress-Shift_R>",
+            "<KeyRelease-Shift_L>", "<KeyRelease-Shift_R>")}
         style = ttk.Style(self)
         style.theme_use("clam")
         style.configure(
@@ -181,7 +188,7 @@ class Shell:
         brand = ctk.CTkFrame(sidebar, fg_color="transparent")
         brand.pack(fill="x", padx=20, pady=(26, 24))
         self.label(brand, "Easy Comfy\nColab", heading=True)
-        self.label(brand, "ESTÚDIO REMOTO / 2.0", muted=True)
+        self.label(brand, tr("ESTÚDIO REMOTO / 2.0"), muted=True)
         self.nav = {}
         for name in [
             "Sessão",
@@ -198,8 +205,8 @@ class Shell:
             self.nav[name] = b
         footer = ctk.CTkFrame(sidebar, fg_color="transparent")
         footer.pack(side="bottom", fill="x", padx=20, pady=20)
-        self.label(footer, "Inferência no Colab\nArquivos no Google Drive", muted=True)
-        self.label(footer, "F5  Atualizar conta\nCtrl+1 / 2 / 3  Navegar", muted=True)
+        self.label(footer, tr("Inferência no Colab\nArquivos no Google Drive"), muted=True)
+        self.label(footer, tr("F5  Atualizar conta\nCtrl+1 / 2 / 3  Navegar"), muted=True)
         top = ctk.CTkFrame(self, fg_color=COLORS["page"], corner_radius=0)
         top.grid(row=0, column=1, sticky="ew", padx=26, pady=(18, 12))
         top.grid_columnconfigure(0, weight=1)
@@ -209,7 +216,7 @@ class Shell:
         self.page_title.grid(row=0, column=0, sticky="w")
         self.account_selector = self.choice(
             top,
-            values=["Conta principal"],
+            values=[tr("Conta principal")],
             command=self._account_changed,
             width=290,
             height=36,
@@ -220,7 +227,7 @@ class Shell:
         )
         self.account_selector.grid(row=0, column=1, padx=(12, 8))
         self.refresh_button = self.button(
-            top, "Atualizar", self._refresh_async, width=95
+            top, tr("Atualizar"), self._refresh_async, width=95
         )
         self.refresh_button.grid(row=0, column=2)
         self.host = ctk.CTkFrame(self, fg_color="transparent")
@@ -245,7 +252,7 @@ class Shell:
             builder(self.pages[name])
         self.notice_label = ctk.CTkLabel(
             self,
-            text="Pronto para conectar.",
+            text=tr("Pronto para conectar."),
             font=font(12),
             text_color=COLORS["muted"],
             anchor="w",
@@ -254,13 +261,14 @@ class Shell:
         )
         self.notice_label.grid(row=2, column=1, sticky="ew", padx=26, pady=12)
         self.show_page("Sessão")
+        self._ui_root_commands = set(self._tclCommands or ()) - commands_before
 
     def _build_session(self, parent):
-        section = self.section(parent, "Ambiente de trabalho")
-        self.status_label = self.label(section, "Verificando instalação…")
+        section = self.section(parent, tr("Ambiente de trabalho"))
+        self.status_label = self.label(section, tr("Verificando instalação…"))
         self.stage_label = self.label(section, "", muted=True)
         self.elapsed_label = self.label(section, "", muted=True)
-        self.label(section, "Hardware para a próxima sessão", muted=True)
+        self.label(section, tr("Hardware para a próxima sessão"), muted=True)
         row = self.row(section)
         self.gpu_buttons = {}
         for i, gpu in enumerate(GPU_CHOICES):
@@ -272,40 +280,40 @@ class Shell:
             self.gpu_buttons[gpu] = b
         self.label(
             section,
-            "G4: até 96 GB de VRAM · GPU e consumo dependem do Colab.\nCPU: prepara downloads sem iniciar o ComfyUI.",
+            tr("G4: até 96 GB de VRAM · GPU e consumo dependem do Colab.\nCPU: prepara downloads sem iniciar o ComfyUI."),
             muted=True,
         )
-        self.label(section, "Onde salvar os resultados", muted=True)
+        self.label(section, tr("Onde salvar os resultados"), muted=True)
         row = self.row(section)
         self.output_choice = self.choice(
-            row, values=["Google Drive", "Meu PC"], width=180,
+            row, values=["Google Drive", tr("Meu PC")], width=180,
             command=self._choose_output,
         )
         self.output_choice.pack(side="left", padx=(0, 8))
-        self.button(row, "Abrir outputs no PC", lambda: self._open_folder("output"), width=180).pack(side="left")
+        self.button(row, tr("Abrir outputs no PC"), lambda: self._open_folder("output"), width=180).pack(side="left")
         self.output_hint = self.label(section, "", muted=True)
         self.output_sync_label = self.label(section, "", muted=True)
         row = self.row(section)
-        self.start_button = self.button(row, "Iniciar sessão", self._start, True, 170)
+        self.start_button = self.button(row, tr("Iniciar sessão"), self._start, True, 170)
         self.start_button.pack(side="left", padx=(0, 8))
         self.open_button = self.button(
-            row, "Abrir ComfyUI", lambda: webbrowser.open(COMFY_URL)
+            row, tr("Abrir ComfyUI"), lambda: webbrowser.open(COMFY_URL)
         )
         self.open_button.pack(side="left", padx=(0, 8))
-        self.stop_button = self.button(row, "Encerrar VM", self._stop, width=130)
+        self.stop_button = self.button(row, tr("Encerrar VM"), self._stop, width=130)
         self.stop_button.pack(side="right")
         row = self.row(section)
         self.restart_button = self.button(
-            row, "Reiniciar ComfyUI", self._restart_comfy, width=165
+            row, tr("Reiniciar ComfyUI"), self._restart_comfy, width=165
         )
         self.restart_button.pack(side="left", padx=(0, 8))
-        self.reconnect_button = self.button(row, "Reconectar", self._start, width=115)
+        self.reconnect_button = self.button(row, tr("Reconectar"), self._start, width=115)
         self.reconnect_button.pack(side="left", padx=(0, 8))
         self.free_button = self.button(
             row,
-            "Liberar VRAM",
+            tr("Liberar VRAM"),
             lambda: self._async(
-                release_vram, lambda _: self.notice("Modelos descarregados da memória.")
+                release_vram, lambda _: self.notice(tr("Modelos descarregados da memória."))
             ),
         )
         self.free_button.pack(side="left")
@@ -321,30 +329,30 @@ class Shell:
         authrow = ctk.CTkFrame(self.auth_panel, fg_color="transparent")
         authrow.pack(fill="x", padx=16, pady=12)
         self.auth_open_button = self.button(
-            authrow, "Abrir autorização", self._open_auth
+            authrow, tr("Abrir autorização"), self._open_auth
         )
         self.auth_open_button.pack(side="left", padx=(0, 8))
         self.auth_code = ctk.CTkEntry(
-            authrow, placeholder_text="Código exibido pelo Google", width=240, height=38
+            authrow, placeholder_text=tr("Código exibido pelo Google"), width=240, height=38
         )
         self.auth_code.pack(side="left", padx=(0, 8))
         self.auth_code.bind("<Return>", lambda _: self._submit_auth())
         self.auth_submit_button = self.button(
-            authrow, "Concluir conexão", self._submit_auth
+            authrow, tr("Concluir conexão"), self._submit_auth
         )
         self.auth_submit_button.pack(side="left")
-        image_section = self.section(parent, "Imagem de instalação no Drive",
-            "Atualizada automaticamente antes de encerrar a VM. Salva os nodes e dependências atuais; "
-            "os modelos já ficam nas pastas do Drive. A operação pode levar alguns minutos e mantém a GPU ligada.")
-        self.image_button = self.button(image_section, "Atualizar imagem do Drive", self._update_runtime_image, width=220)
+        image_section = self.section(parent, tr("Imagem de instalação no Drive"),
+            tr("Atualizada automaticamente antes de encerrar a VM. Salva os nodes e dependências atuais; "
+            "os modelos já ficam nas pastas do Drive. A operação pode levar alguns minutos e mantém a GPU ligada."))
+        self.image_button = self.button(image_section, tr("Atualizar imagem do Drive"), self._update_runtime_image, width=220)
         self.image_button.pack(anchor="w")
-        metrics = self.section(parent, "Créditos e sessão")
+        metrics = self.section(parent, tr("Créditos e sessão"))
         row = self.row(metrics)
         self.metric_values = {}
         for key, label in [
-            ("balance", "Saldo"),
-            ("rate", "Consumo da conta"),
-            ("runtime", "Autonomia estimada"),
+            ("balance", tr("Saldo")),
+            ("rate", tr("Consumo da conta")),
+            ("runtime", tr("Autonomia estimada")),
         ]:
             f = ctk.CTkFrame(row, fg_color="transparent")
             f.pack(side="left", fill="x", expand=True)
@@ -352,10 +360,10 @@ class Shell:
             self.metric_values[key] = self.label(f, "—", heading=True)
         self.credit_help = self.label(
             metrics,
-            "Atualizado a cada 30 segundos. Autonomia = saldo / consumo da conta.",
+            tr("Atualizado a cada 30 segundos. Autonomia = saldo / consumo da conta."),
             muted=True,
         )
-        activity = self.section(parent, "Atividade")
+        activity = self.section(parent, tr("Atividade"))
         self.log_box = ctk.CTkTextbox(
             activity,
             height=180,
@@ -369,10 +377,10 @@ class Shell:
     def _build_models(self, parent):
         add = self.section(
             parent,
-            "Baixar modelos",
-            "Hugging Face e Civitai → VM → Google Drive. A transferência continua na VM ao fechar o app.",
+            tr("Baixar modelos"),
+            tr("Hugging Face e Civitai → VM → Google Drive. A transferência continua na VM ao fechar o app."),
         )
-        self.label(add, "Links — um por linha", muted=True)
+        self.label(add, tr("Links — um por linha"), muted=True)
         self.urls = ctk.CTkTextbox(
             add,
             height=78,
@@ -390,7 +398,7 @@ class Shell:
         self.urls.bind("<Tab>", next_field)
         self.label(
             add,
-            "Para nomear um arquivo: URL | nome.safetensors. No Civitai, informe o nome com extensão.",
+            tr("Para nomear um arquivo: URL | nome.safetensors. No Civitai, informe o nome com extensão."),
             muted=True,
         )
         row = self.row(add)
@@ -398,7 +406,7 @@ class Shell:
         self.category.set("loras")
         self.category.pack(side="left", padx=(0, 10))
         self.download_button = self.button(
-            row, "Adicionar à fila", self._submit_downloads, True, 170
+            row, tr("Adicionar à fila"), self._submit_downloads, True, 170
         )
         self.download_button.pack(side="left")
         self.parallel = self.choice(
@@ -411,162 +419,162 @@ class Shell:
         self.parallel.set(str(self.preferences.values["parallel"]))
         self.parallel.pack(side="right")
         ctk.CTkLabel(
-            row, text="Paralelos", font=font(12), text_color=COLORS["muted"]
+            row, text=tr("Paralelos"), font=font(12), text_color=COLORS["muted"]
         ).pack(side="right", padx=10)
         self.destination_label = self.label(
-            add, "Destino: Meu Drive / ComfyColab / models / loras", muted=True
+            add, tr("Destino: Meu Drive / ComfyColab / models / loras"), muted=True
         )
         self.category.configure(
             command=lambda v: self.destination_label.configure(
-                text="Destino: Meu Drive / ComfyColab / models / " + v
+                text=tr("Destino: Meu Drive / ComfyColab / models / ") + v
             )
         )
         downloads = self.section(
             parent,
-            "Fila de downloads",
-            "Selecione um item para ver o nome completo, cancelar ou retomar.",
+            tr("Fila de downloads"),
+            tr("Selecione um item para ver o nome completo, cancelar ou retomar."),
         )
         self.download_tree = self.tree(
             downloads,
-            ["Arquivo", "Estado", "Progresso", "Velocidade", "Restante"],
+            [tr("Arquivo"), tr("Estado"), tr("Progresso"), tr("Velocidade"), tr("Restante")],
             [315, 110, 160, 110, 90],
         )
         row = self.row(downloads)
-        self.button(row, "Cancelar selecionado", self._cancel_download, width=175).pack(
+        self.button(row, tr("Cancelar selecionado"), self._cancel_download, width=175).pack(
             side="left", padx=(0, 8)
         )
         self.button(
-            row, "Retomar / tentar novamente", self._retry_download, width=210
+            row, tr("Retomar / tentar novamente"), self._retry_download, width=210
         ).pack(side="left")
         self.download_hint = self.label(
             downloads,
-            "Inicie uma sessão de GPU ou CPU para acessar a fila.",
+            tr("Inicie uma sessão de GPU ou CPU para acessar a fila."),
             muted=True,
         )
-        library = self.section(parent, "Biblioteca no Drive")
+        library = self.section(parent, tr("Biblioteca no Drive"))
         row = self.row(library)
         self.search = ctk.CTkEntry(
-            row, placeholder_text="Pesquisar modelo ou categoria", height=38, width=400
+            row, placeholder_text=tr("Pesquisar modelo ou categoria"), height=38, width=400
         )
         self.search.pack(side="left", fill="x", expand=True, padx=(0, 10))
         self.search.bind("<KeyRelease>", lambda _: self._render_library())
-        self.button(row, "Atualizar biblioteca", self._load_library, width=170).pack(
+        self.button(row, tr("Atualizar biblioteca"), self._load_library, width=170).pack(
             side="right"
         )
         self.library_tree = self.tree(
-            library, ["Modelo", "Categoria", "Tamanho"], [510, 180, 110], height=9
+            library, [tr("Modelo"), tr("Categoria"), tr("Tamanho")], [510, 180, 110], height=9
         )
         self.library_tree.configure(selectmode="extended")
-        self.button(library, "Selecionar por workflow", self._select_cache_workflow, width=210).pack(anchor="w")
+        self.button(library, tr("Selecionar por workflow"), self._select_cache_workflow, width=210).pack(anchor="w")
         self.library_hint = self.label(
-            library, "Atualize com a sessão conectada.", muted=True
+            library, tr("Atualize com a sessão conectada."), muted=True
         )
-        cache = self.section(parent, "Carregamento rápido",
-                             "Selecione modelos na biblioteca com Ctrl ou pelo JSON do workflow. As cópias ficam na VM; os originais permanecem no Drive.")
-        self.cache_enabled = ctk.CTkSwitch(cache, text="Usar cache da VM", command=self._cache_settings)
+        cache = self.section(parent, tr("Carregamento rápido"),
+                             tr("Selecione modelos na biblioteca com Ctrl ou pelo JSON do workflow. As cópias ficam na VM; os originais permanecem no Drive."))
+        self.cache_enabled = ctk.CTkSwitch(cache, text=tr("Usar cache da VM"), command=self._cache_settings)
         self.cache_enabled.pack(anchor="w", pady=(0, 12))
-        self.cache_warm = ctk.CTkSwitch(cache, text="Preparar antecipadamente na RAM", command=self._cache_settings)
+        self.cache_warm = ctk.CTkSwitch(cache, text=tr("Preparar antecipadamente na RAM"), command=self._cache_settings)
         self.cache_warm.pack(anchor="w", pady=(0, 12))
         row = self.row(cache)
         self.cache_limit = self.choice(row, values=[f"{n} GiB" for n in (8, 16, 32, 64, 96, 128)],
                                        width=140, command=self._cache_settings)
         self.cache_limit.set("32 GiB")
         self.cache_limit.pack(side="left", padx=(0, 12))
-        ctk.CTkLabel(row, text="Limite de pré-leitura · reserva automática de RAM", font=font(12), text_color=COLORS["muted"]).pack(side="left")
+        ctk.CTkLabel(row, text=tr("Limite de pré-leitura · reserva automática de RAM"), font=font(12), text_color=COLORS["muted"]).pack(side="left")
         row = self.row(cache)
-        self.cache_prepare = self.button(row, "Preparar selecionados", self._prepare_cache, True, width=200)
+        self.cache_prepare = self.button(row, tr("Preparar selecionados"), self._prepare_cache, True, width=200)
         self.cache_prepare.pack(side="left", padx=(0, 10))
-        self.cache_cancel = self.button(row, "Cancelar preparação", lambda: self._cache_action("cancel"), width=190)
+        self.cache_cancel = self.button(row, tr("Cancelar preparação"), lambda: self._cache_action("cancel"), width=190)
         self.cache_cancel.pack(side="left")
-        self.cache_clear = self.button(row, "Limpar cache da VM", lambda: self._cache_action("clear"), width=185)
+        self.cache_clear = self.button(row, tr("Limpar cache da VM"), lambda: self._cache_action("clear"), width=185)
         self.cache_clear.pack(side="left", padx=(10, 0))
-        self.cache_tree = self.tree(cache, ["Modelo", "Preparação", "Detalhes"], [320, 190, 310], height=5)
-        self.cache_hint = self.label(cache, "Conecte a VM para preparar modelos.", muted=True)
-        self.label(cache, "A lista escolhida será preparada automaticamente nas próximas sessões. A RAM usa o cache do Linux e pode ser liberada pelo sistema. A cópia inicial ainda leva tempo; downloads continuam no Drive.", muted=True)
+        self.cache_tree = self.tree(cache, [tr("Modelo"), tr("Preparação"), tr("Detalhes")], [320, 190, 310], height=5)
+        self.cache_hint = self.label(cache, tr("Conecte a VM para preparar modelos."), muted=True)
+        self.label(cache, tr("A lista escolhida será preparada automaticamente nas próximas sessões. A RAM usa o cache do Linux e pode ser liberada pelo sistema. A cópia inicial ainda leva tempo; downloads continuam no Drive."), muted=True)
         self._render_cache()
 
     def _build_accounts(self, parent):
         accounts = self.section(
             parent,
-            "Contas conectadas",
-            "Cada perfil guarda sua autorização e preferência de GPU.",
+            tr("Contas conectadas"),
+            tr("Cada perfil guarda sua autorização e preferência de GPU."),
         )
         self.account_tree = self.tree(
-            accounts, ["Conta", "E-mail", "Perfil"], [220, 400, 170], height=4
+            accounts, [tr("Conta"), tr("E-mail"), tr("Perfil")], [220, 400, 170], height=4
         )
         row = self.row(accounts)
         self.add_account_button = self.button(
-            row, "Adicionar conta", self._add_account, True
+            row, tr("Adicionar conta"), self._add_account, True
         )
         self.add_account_button.pack(side="left", padx=(0, 8))
         self.button(
-            row, "Conectar conta selecionada", self._connect_account, width=210
+            row, tr("Conectar conta selecionada"), self._connect_account, width=210
         ).pack(side="left")
         transfer = self.section(
             parent,
-            "Copiar entre Google Drives",
-            "As cópias são feitas nos servidores do Google. Os arquivos da origem são preservados.",
+            tr("Copiar entre Google Drives"),
+            tr("As cópias são feitas nos servidores do Google. Os arquivos da origem são preservados."),
         )
         self.label(
-            transfer, "Origem: conta selecionada no topo do aplicativo.", muted=True
+            transfer, tr("Origem: conta selecionada no topo do aplicativo."), muted=True
         )
-        self.label(transfer, "Conta de destino", muted=True)
+        self.label(transfer, tr("Conta de destino"), muted=True)
         self.drive_destination = self.choice(
-            transfer, values=["Adicione outra conta"], width=450, height=38
+            transfer, values=[tr("Adicione outra conta")], width=450, height=38
         )
         self.drive_destination.pack(anchor="w", pady=(0, 14))
         self.drive_folder = self.entry(
-            transfer, "Pasta de origem", "ComfyColab ou ID de uma pasta do Drive"
+            transfer, tr("Pasta de origem"), tr("ComfyColab ou ID de uma pasta do Drive")
         )
         self.drive_folder.insert(0, "ComfyColab")
         self.label(
             transfer,
-            "A cópia cria ou atualiza ComfyColab no destino. O cache de instalação não é copiado. Arquivos diferentes com o mesmo nome são preservados com outro nome.",
+            tr("A cópia cria ou atualiza ComfyColab no destino. O cache de instalação não é copiado. Arquivos diferentes com o mesmo nome são preservados com outro nome."),
             muted=True,
         )
         row = self.row(transfer)
         self.button(
-            row, "Verificar cópia", lambda: self._drive_action("plan"), True
+            row, tr("Verificar cópia"), lambda: self._drive_action("plan"), True
         ).pack(side="left", padx=(0, 8))
         self.button(
-            row, "Copiar / retomar", lambda: self._drive_action("copy"), width=160
+            row, tr("Copiar / retomar"), lambda: self._drive_action("copy"), width=160
         ).pack(side="left", padx=(0, 8))
         self.button(
-            row, "Autorizar Drive", lambda: self._drive_action("authorize"), width=140
+            row, tr("Autorizar Drive"), lambda: self._drive_action("authorize"), width=140
         ).pack(side="left")
         shared = self.section(
             parent,
-            "Biblioteca compartilhada",
-            "Alternativa à cópia: duas contas passam a usar a mesma pasta de modelos.",
+            tr("Biblioteca compartilhada"),
+            tr("Alternativa à cópia: duas contas passam a usar a mesma pasta de modelos."),
         )
         self.label(
             shared,
-            "Cria um atalho models no destino e concede edição à outra conta. Alterações afetam ambas as contas; a biblioteca depende do Drive de origem. O destino precisa estar sem uma pasta models existente.",
+            tr("Cria um atalho models no destino e concede edição à outra conta. Alterações afetam ambas as contas; a biblioteca depende do Drive de origem. O destino precisa estar sem uma pasta models existente."),
             muted=True,
         )
         self.button(
             shared,
-            "Compartilhar biblioteca",
+            tr("Compartilhar biblioteca"),
             lambda: self._drive_action("share"),
             width=210,
         ).pack(anchor="w")
         self.drive_message = self.label(
             parent,
-            "Autorizações e progresso aparecem na aba Sessão. O acesso ao Drive será solicitado separadamente.",
+            tr("Autorizações e progresso aparecem na aba Sessão. O acesso ao Drive será solicitado separadamente."),
             muted=True,
         )
 
     def _build_monitor(self, parent):
         self.monitor_labels = {}
         self.monitor_bars = {}
-        for prefix, title in [("local", "Seu notebook"), ("remote", "VM do Colab")]:
+        for prefix, title in [("local", tr("Seu notebook")), ("remote", tr("VM do Colab"))]:
             section = self.section(
-                parent, title, "Leituras atualizadas a cada 5 segundos."
+                parent, title, tr("Leituras atualizadas a cada 5 segundos.")
             )
             for key, label in [
                 ("cpu", "CPU"),
-                ("ram", "Memória RAM"),
-                ("extra", "Detalhes"),
+                ("ram", tr("Memória RAM")),
+                ("extra", tr("Detalhes")),
             ]:
                 self.monitor_labels[prefix + "_" + key] = self.label(
                     section, label + ": —"
@@ -578,10 +586,10 @@ class Shell:
                     bar.set(0)
                     bar.pack(fill="x", pady=(0, 14))
                     self.monitor_bars[prefix + "_" + key] = bar
-        self.gpu_section = self.section(parent, "GPU e armazenamento da VM")
+        self.gpu_section = self.section(parent, tr("GPU e armazenamento da VM"))
         self.gpu_label = self.label(
             self.gpu_section,
-            "Inicie uma sessão para consultar GPU, VRAM e disco.",
+            tr("Inicie uma sessão para consultar GPU, VRAM e disco."),
             muted=True,
         )
         self.gpu_bar = ctk.CTkProgressBar(
@@ -594,26 +602,26 @@ class Shell:
     def _build_workflows(self, parent):
         section = self.section(
             parent,
-            "Verificar dependências",
-            "Escolha um workflow JSON para identificar modelos e nodes ausentes na VM conectada.",
+            tr("Verificar dependências"),
+            tr("Escolha um workflow JSON para identificar modelos e nodes ausentes na VM conectada."),
         )
         self.button(
-            section, "Abrir workflow JSON", self._check_workflow, True, width=190
+            section, tr("Abrir workflow JSON"), self._check_workflow, True, width=190
         ).pack(anchor="w")
         self.workflow_tree = self.tree(
             section,
-            ["Resultado", "Dependência", "Próximo passo"],
+            [tr("Resultado"), tr("Dependência"), tr("Próximo passo")],
             [190, 310, 350],
             height=12,
         )
         self.label(
             section,
-            "O diagnóstico não executa a geração. Referências dinâmicas e alguns subgrafos podem exigir conferência no ComfyUI.",
+            tr("O diagnóstico não executa a geração. Referências dinâmicas e alguns subgrafos podem exigir conferência no ComfyUI."),
             muted=True,
         )
         self.button(
             section,
-            "Abrir pasta de workflows",
+            tr("Abrir pasta de workflows"),
             lambda: self._open_folder("user/default/workflows"),
             width=210,
         ).pack(anchor="w")
@@ -621,98 +629,108 @@ class Shell:
     def _build_history(self, parent):
         section = self.section(
             parent,
-            "Histórico de operações",
-            "Registro local por conta. Taxa e saldo são os valores consultados na conta, quando disponíveis.",
+            tr("Histórico de operações"),
+            tr("Registro local por conta. Taxa e saldo são os valores consultados na conta, quando disponíveis."),
         )
         self.history_tree = self.tree(
             section,
             [
-                "Data",
-                "Conta",
-                "Operação",
+                tr("Data"),
+                tr("Conta"),
+                tr("Operação"),
                 "GPU",
-                "Duração",
-                "CU estimados",
-                "Resultado",
+                tr("Duração"),
+                tr("CU estimados"),
+                tr("Resultado"),
             ],
             [130, 200, 140, 65, 90, 100, 100],
             height=14,
         )
         self.button(
-            section, "Exportar histórico", self._export_history, width=165
+            section, tr("Exportar histórico"), self._export_history, width=165
         ).pack(anchor="w")
         self._render_history()
 
     def _build_settings(self, parent):
+        language = self.section(
+            parent, tr("Idioma / Language"),
+            tr("A escolha é salva neste computador e aplicada imediatamente. Não reinicia o ComfyUI nem a VM."),
+        )
+        self.language_choice = self.choice(
+            language, values=list(LANGUAGES.values()), width=220,
+            command=self._change_language,
+        )
+        self.language_choice.set(LANGUAGES[self.preferences.values["language"]])
+        self.language_choice.pack(anchor="w")
         self.section(
             parent,
-            "Inicialização · imagem no Google Drive",
-            "Ativa por padrão. Uma instalação pronta é copiada do Drive e extraída no disco da VM. "
+            tr("Inicialização · imagem no Google Drive"),
+            tr("Ativa por padrão. Uma instalação pronta é copiada do Drive e extraída no disco da VM. "
             "Se a base do Colab mudar, o app instala o ambiente novamente e prepara outra imagem em segundo plano. "
             "Use Atualizar imagem do Drive na aba Sessão após instalar nodes. Encerrar VM também atualiza a imagem antes de desligar. "
-            "Os tempos de cada etapa aparecem no log da sessão.",
+            "Os tempos de cada etapa aparecem no log da sessão."),
         )
         creds = self.section(
             parent,
-            "Credenciais de download",
-            "Protegidas pelo usuário do Windows e separadas por conta. Deixe em branco para manter a credencial atual.",
+            tr("Credenciais de download"),
+            tr("Protegidas pelo usuário do Windows e separadas por conta. Deixe em branco para manter a credencial atual."),
         )
-        self.hf_token = self.entry(creds, "Token do Hugging Face", "hf_…", show="●")
+        self.hf_token = self.entry(creds, tr("Token do Hugging Face"), "hf_…", show="●")
         self.civit_token = self.entry(
-            creds, "API key do Civitai", "Credencial da sua conta Civitai", show="●"
+            creds, tr("API key do Civitai"), tr("Credencial da sua conta Civitai"), show="●"
         )
         self.credential_status = self.label(creds, "", muted=True)
         row = self.row(creds)
         self.button(
-            row, "Salvar credenciais", self._save_credentials, True, width=165
+            row, tr("Salvar credenciais"), self._save_credentials, True, width=165
         ).pack(side="left", padx=(0, 8))
         self.button(
-            row, "Remover credenciais", self._remove_credentials, width=175
+            row, tr("Remover credenciais"), self._remove_credentials, width=175
         ).pack(side="left")
         economy = self.section(
             parent,
-            "Uso e economia",
-            "O encerramento automático só funciona enquanto este aplicativo está aberto e conectado à VM.",
+            tr("Uso e economia"),
+            tr("O encerramento automático só funciona enquanto este aplicativo está aberto e conectado à VM."),
         )
         self.idle_entry = self.entry(
             economy,
-            "Encerrar após quantos minutos sem geração ou download?",
-            "0 desativa",
+            tr("Encerrar após quantos minutos sem geração ou download?"),
+            tr("0 desativa"),
         )
         self.idle_entry.insert(0, str(self.preferences.values["idle_minutes"]))
         self.balance_entry = self.entry(
-            economy, "Avisar quando o saldo ficar abaixo de quantos créditos?", "20"
+            economy, tr("Avisar quando o saldo ficar abaixo de quantos créditos?"), "20"
         )
         self.balance_entry.insert(0, str(self.preferences.values["balance_alert"]))
         self.auto_open = ctk.CTkCheckBox(
             economy,
-            text="Abrir o ComfyUI no navegador quando a sessão estiver pronta",
+            text=tr("Abrir o ComfyUI no navegador quando a sessão estiver pronta"),
             font=font(13),
         )
         self.auto_open.pack(anchor="w", pady=(0, 16))
         if self.preferences.values["auto_open"]:
             self.auto_open.select()
         self.button(
-            economy, "Salvar preferências", self._save_preferences, width=170
+            economy, tr("Salvar preferências"), self._save_preferences, width=170
         ).pack(anchor="w")
         support = self.section(
             parent,
-            "Aplicativo",
-            "Versão " + VERSION + " · ComfyUI Easy Install no Google Colab",
+            tr("Aplicativo"),
+            tr("Versão ") + VERSION + tr(" · ComfyUI Easy Install no Google Colab"),
         )
         row = self.row(support)
         self.button(
             row,
-            "Abrir pasta do projeto",
+            tr("Abrir pasta do projeto"),
             lambda: os.startfile(self.gateway.root),
             width=185,
         ).pack(side="left", padx=(0, 8))
         self.button(
-            row, "Exportar diagnóstico", self._export_diagnostics, width=180
+            row, tr("Exportar diagnóstico"), self._export_diagnostics, width=180
         ).pack(side="left")
         self.label(
             support,
-            "Os modelos ficam no Drive. O cache e o ambiente temporário da VM podem ser recriados em uma nova sessão.",
+            tr("Os modelos ficam no Drive. O cache e o ambiente temporário da VM podem ser recriados em uma nova sessão."),
             muted=True,
         )
 
@@ -730,4 +748,4 @@ class Shell:
                 border_width=1 if key == name else 0,
             )
         self.pages[name].grid(row=0, column=0, sticky="nsew")
-        self.page_title.configure(text=name)
+        self.page_title.configure(text=tr(name))

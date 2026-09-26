@@ -15,7 +15,7 @@ def main() -> int:
         raise SystemExit("Run Build-App.ps1 first.")
     destination = ROOT / "release"
     destination.mkdir(exist_ok=True)
-    archive = destination / "Easy-Comfy-Colab-2.0.5-Windows-x64.zip"
+    archive = destination / "Easy-Comfy-Colab-2.0.6-Windows-x64.zip"
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as output:
         for relative in tracked_files():
             output.write(ROOT / relative, "Easy Comfy Colab/" + relative.as_posix())

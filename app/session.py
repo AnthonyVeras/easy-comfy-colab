@@ -1,6 +1,7 @@
 """Painel Windows para operar o ComfyUI hospedado no Google Colab."""
 
 from __future__ import annotations
+from i18n import get_language, tr
 
 import codecs
 import os
@@ -57,9 +58,16 @@ def font(size: int, weight: str = "normal", family: str = "Segoe UI") -> ctk.CTk
 def format_units(value: float | None, suffix: str = "") -> str:
     if value is None:
         return "—"
-    return (
-        f"{value:,.2f}".replace(",", "_").replace(".", ",").replace("_", ".") + suffix
-    )
+    text = f"{value:,.2f}"
+    if get_language() == "pt-BR":
+        text = text.replace(",", "_").replace(".", ",").replace("_", ".")
+    return text + suffix
+
+
+class AccountDialog(ctk.CTkInputDialog):
+    def _create_widgets(self):
+        super()._create_widgets()
+        self._cancel_button.configure(text=tr("Cancelar"))
 
 
 class ConfirmDialog(ctk.CTkToplevel):
@@ -167,7 +175,7 @@ class SessionWindow(ctk.CTk):
         self.cancel_requested = False
         self.exit_after_stop = False
         self.setup_error = ""
-        self.stage = "Verificando instalação…"
+        self.stage = tr("Verificando instalação…")
         self._build_ui()
         self._render()
         self.after(100, self._poll_events)
@@ -204,7 +212,7 @@ class SessionWindow(ctk.CTk):
             self._render()
             return
         self.refreshing = True
-        self.stage = "Consultando sua conta…"
+        self.stage = tr("Consultando sua conta…")
         self._render()
 
         def work():
@@ -216,7 +224,7 @@ class SessionWindow(ctk.CTk):
                     else ""
                 )
             except Exception as exc:
-                snapshot = Snapshot(error=f"Não foi possível atualizar: {exc}")
+                snapshot = Snapshot(error=tr("Não foi possível atualizar: {p0}", p0=exc))
                 email = ""
             self.events.put(("refreshed", profile.id, snapshot, email))
 
@@ -229,7 +237,7 @@ class SessionWindow(ctk.CTk):
                 kind = item[0]
                 if kind == "initialized":
                     self.setup_error = item[1]
-                    self.stage = self.setup_error or "Instalação pronta"
+                    self.stage = self.setup_error or tr("Instalação pronta")
                     self._append_log(self.stage)
                     self._render()
                     if not self.setup_error:
@@ -240,7 +248,7 @@ class SessionWindow(ctk.CTk):
                     if self.store.selected == profile_id:
                         self.snapshot = snapshot
                         self._on_snapshot(profile_id, snapshot)
-                        self.stage = snapshot.error or "Informações atualizadas"
+                        self.stage = snapshot.error or tr("Informações atualizadas")
                         if email:
                             profile = self.store.current()
                             profile.email = email
@@ -262,7 +270,7 @@ class SessionWindow(ctk.CTk):
             pass
         except Exception:
             self._append_log(
-                "Falha ao atualizar a interface.\n" + traceback.format_exc()
+                tr("Falha ao atualizar a interface.\n") + traceback.format_exc()
             )
         self.after(100, self._poll_events)
 
@@ -281,7 +289,7 @@ class SessionWindow(ctk.CTk):
             return
         if "To authorize colab-cli" in line:
             self.cli_oauth_pending = True
-            self._append_log("A autorização do Colab CLI é necessária no navegador.")
+            self._append_log(tr("A autorização do Colab CLI é necessária no navegador."))
             return
         match = URL_PATTERN.search(line)
         if match:
@@ -292,40 +300,40 @@ class SessionWindow(ctk.CTk):
                 if self.busy in {"connect", "drive"} or self.cli_oauth_pending
                 else "drive"
             )
-            self.stage = "Autorização do Google necessária"
-            self._append_log("Autorize a conta no navegador para continuar.")
+            self.stage = tr("Autorização do Google necessária")
+            self._append_log(tr("Autorize a conta no navegador para continuar."))
             self._render()
             if new_request:
                 self.show_page("Sessão")
                 self._open_auth()
             return
         if "authorization code:" in line.lower():
-            self._append_log("Cole no aplicativo o código exibido pelo Google.")
+            self._append_log(tr("Cole no aplicativo o código exibido pelo Google."))
             return
         self._append_log(line)
         stages = (
-            ("Criando sessão", "Alocando a GPU no Colab…"),
-            ("Montando Google Drive", "Montando o Google Drive…"),
-            ("Instalando ComfyUI", "Preparando o ComfyUI…"),
-            ("Procurando imagem", "Verificando a imagem no Google Drive…"),
-            ("Restaurando imagem", "Copiando a imagem do Drive para a VM…"),
-            ("Extraindo...", "Extraindo e verificando a instalação…"),
-            ("Preparando instalação convencional", "Instalando dependências: imagem compatível indisponível…"),
-            ("Sincronizando custom nodes", "Sincronizando os nodes…"),
-            ("Enviando entradas", "Enviando as entradas…"),
-            ("Iniciando servidor", "Iniciando o servidor…"),
-            ("Preparando Comfy MCP", "Preparando a integração Comfy MCP…"),
-            ("Atualizando imagem do Drive", "Atualizando a imagem do Drive…"),
-            ("Preparando imagem em uma cópia", "Copiando a instalação para preparar a imagem…"),
-            ("Validando dependências", "Verificando a instalação copiada…"),
-            ("Compactando imagem", "Compactando a imagem da instalação…"),
-            ("Enviando imagem ao Drive", "Salvando a nova imagem no Drive…"),
-            ("Verificando imagem no Drive", "Verificando a integridade da nova imagem…"),
-            ("Imagem pronta no Drive", "Imagem do Drive atualizada e verificada"),
-            ("Abrindo túnel", "Abrindo o túnel SSH…"),
-            ("Teste concluído", "Inferência na GPU verificada"),
-            ("Copiando resultados", "Copiando os resultados…"),
-            ("Encerrando sessão", "Desligando a VM…"),
+            ("Criando sessão", tr("Alocando a GPU no Colab…")),
+            ("Montando Google Drive", tr("Montando o Google Drive…")),
+            ("Instalando ComfyUI", tr("Preparando o ComfyUI…")),
+            ("Procurando imagem", tr("Verificando a imagem no Google Drive…")),
+            ("Restaurando imagem", tr("Copiando a imagem do Drive para a VM…")),
+            ("Extraindo...", tr("Extraindo e verificando a instalação…")),
+            ("Preparando instalação convencional", tr("Instalando dependências: imagem compatível indisponível…")),
+            ("Sincronizando custom nodes", tr("Sincronizando os nodes…")),
+            ("Enviando entradas", tr("Enviando as entradas…")),
+            ("Iniciando servidor", tr("Iniciando o servidor…")),
+            ("Preparando Comfy MCP", tr("Preparando a integração Comfy MCP…")),
+            ("Atualizando imagem do Drive", tr("Atualizando a imagem do Drive…")),
+            ("Preparando imagem em uma cópia", tr("Copiando a instalação para preparar a imagem…")),
+            ("Validando dependências", tr("Verificando a instalação copiada…")),
+            ("Compactando imagem", tr("Compactando a imagem da instalação…")),
+            ("Enviando imagem ao Drive", tr("Salvando a nova imagem no Drive…")),
+            ("Verificando imagem no Drive", tr("Verificando a integridade da nova imagem…")),
+            ("Imagem pronta no Drive", tr("Imagem do Drive atualizada e verificada")),
+            ("Abrindo túnel", tr("Abrindo o túnel SSH…")),
+            ("Teste concluído", tr("Inferência na GPU verificada")),
+            ("Copiando resultados", tr("Copiando os resultados…")),
+            ("Encerrando sessão", tr("Desligando a VM…")),
         )
         for needle, stage in stages:
             if needle in line:
@@ -360,12 +368,12 @@ class SessionWindow(ctk.CTk):
         self.cli_oauth_pending = False
         self.cancel_requested = False
         self.stage = {
-            "start": "Preparando sessão…",
-            "stop": "Encerrando sessão…",
-            "connect": "Conectando conta…",
-            "restart": "Reiniciando o ComfyUI…",
-            "drive": "Operação no Google Drive…",
-            "image": "Atualizando a imagem do Drive…",
+            "start": tr("Preparando sessão…"),
+            "stop": tr("Encerrando sessão…"),
+            "connect": tr("Conectando conta…"),
+            "restart": tr("Reiniciando o ComfyUI…"),
+            "drive": tr("Operação no Google Drive…"),
+            "image": tr("Atualizando a imagem do Drive…"),
         }[operation]
         self._append_log(f"── {self.stage} ──")
         self._render()
@@ -404,7 +412,7 @@ class SessionWindow(ctk.CTk):
 
         if operation == "start" and self.cancel_requested:
             self.cancel_requested = False
-            self._append_log("Inicialização interrompida. Liberando a sessão do Colab…")
+            self._append_log(tr("Inicialização interrompida. Liberando a sessão do Colab…"))
             self._launch(
                 "stop",
                 self.operation_profile,
@@ -414,9 +422,9 @@ class SessionWindow(ctk.CTk):
 
         if return_code != 0:
             self.exit_after_stop = False
-            self.stage = ("A VM foi mantida ligada. Veja o erro na atividade e tente novamente."
-                          if operation in {"stop", "image"} else "Falha na operação. Veja a atividade e tente novamente.")
-            self._append_log(error or f"Operação terminou com código {return_code}.")
+            self.stage = (tr("A VM foi mantida ligada. Veja o erro na atividade e tente novamente.")
+                          if operation in {"stop", "image"} else tr("Falha na operação. Veja a atividade e tente novamente."))
+            self._append_log(error or tr("Operação terminou com código {p0}.", p0=return_code))
             self._render()
             self._refresh_async()
             return
@@ -424,19 +432,19 @@ class SessionWindow(ctk.CTk):
         if operation == "connect":
             email = parse_email(self.operation_text)
             if not email:
-                self.stage = "A conta respondeu, mas o e-mail não foi identificado. Tente reconectar."
+                self.stage = tr("A conta respondeu, mas o e-mail não foi identificado. Tente reconectar.")
             else:
                 profile = self.operation_profile
                 profile.email = email
                 profile.connected = True
                 self.store.save()
-                self.stage = f"Conta conectada: {email}"
+                self.stage = tr("Conta conectada: {p0}", p0=email)
                 self._append_log(self.stage)
         elif operation == "start":
             self.stage = (
-                "Downloads em CPU prontos"
+                tr("Downloads em CPU prontos")
                 if self.operation_profile.gpu == "CPU"
-                else "ComfyUI pronto no navegador"
+                else tr("ComfyUI pronto no navegador")
             )
             self._append_log(self.stage)
             if (
@@ -445,17 +453,17 @@ class SessionWindow(ctk.CTk):
             ):
                 webbrowser.open(COMFY_URL)
         elif operation == "stop":
-            self.stage = "VM desligada. O consumo desta sessão foi interrompido."
+            self.stage = tr("VM desligada. O consumo desta sessão foi interrompido.")
             self._append_log(self.stage)
             self.snapshot = Snapshot()
             if self.exit_after_stop:
                 self.destroy()
                 return
         elif operation == "restart":
-            self.stage = "ComfyUI reiniciado. Modelos removidos da memória da GPU."
+            self.stage = tr("ComfyUI reiniciado. Modelos removidos da memória da GPU.")
             self._append_log(self.stage)
         elif operation == "image":
-            self.stage = "Imagem do Drive atualizada. Será usada na próxima VM compatível."
+            self.stage = tr("Imagem do Drive atualizada. Será usada na próxima VM compatível.")
             self._append_log(self.stage)
         self._render()
         self._refresh_async()
@@ -468,9 +476,9 @@ class SessionWindow(ctk.CTk):
             self._connect_account()
             return
         elif not self.snapshot.status_known:
-            self.stage = "Atualize a conta para confirmar se já existe uma VM ativa."
+            self.stage = tr("Atualize a conta para confirmar se já existe uma VM ativa.")
         elif self.snapshot.local_ready and not self.snapshot.session_exists:
-            self.stage = "A porta local já está em uso por outra sessão. Encerre-a antes de iniciar."
+            self.stage = tr("A porta local já está em uso por outra sessão. Encerre-a antes de iniciar.")
         else:
             self._launch(
                 "start",
@@ -485,11 +493,11 @@ class SessionWindow(ctk.CTk):
         if self.download_active and not force:
             ConfirmDialog(
                 self,
-                "Download em andamento",
-                "Desligar a VM interrompe o download. A parte já baixada fica no Drive para retomar depois.",
+                tr("Download em andamento"),
+                tr("Desligar a VM interrompe o download. A parte já baixada fica no Drive para retomar depois."),
                 [
-                    ("Aguardar download", lambda: None, "secondary"),
-                    ("Desligar VM", lambda: self._stop(force=True), "primary"),
+                    (tr("Aguardar download"), lambda: None, "secondary"),
+                    (tr("Desligar VM"), lambda: self._stop(force=True), "primary"),
                 ],
             )
             return
@@ -501,7 +509,7 @@ class SessionWindow(ctk.CTk):
             if self.cancel_requested:
                 return
             self.cancel_requested = True
-            self.stage = "Cancelando o início e liberando a VM…"
+            self.stage = tr("Cancelando o início e liberando a VM…")
             profile = self.operation_profile
 
             def cancel():
@@ -516,7 +524,7 @@ class SessionWindow(ctk.CTk):
                     if result.returncode:
                         self.events.put(("ui", self._cancel_failed))
                 except Exception as exc:
-                    self.events.put(("stream", f"Falha ao cancelar: {exc}\n"))
+                    self.events.put(("stream", tr("Falha ao cancelar: {p0}\n", p0=exc)))
                     self.events.put(("ui", self._cancel_failed))
 
             threading.Thread(target=cancel, daemon=True).start()
@@ -530,7 +538,7 @@ class SessionWindow(ctk.CTk):
     def _cancel_failed(self):
         if self.busy == "start":
             self.cancel_requested = False
-            self.stage = "O cancelamento não foi confirmado. Tente cancelar novamente."
+            self.stage = tr("O cancelamento não foi confirmado. Tente cancelar novamente.")
             self._render()
 
     def _update_runtime_image(self) -> None:
@@ -561,42 +569,42 @@ class SessionWindow(ctk.CTk):
         profile = self.store.current()
         profile.gpu = gpu
         self.store.save()
-        self.stage = f"{gpu} selecionada para a próxima sessão"
+        self.stage = tr("{p0} selecionada para a próxima sessão", p0=gpu)
         self._render()
 
     def _select_profile(self, profile_id: str) -> None:
         if profile_id == self.store.selected:
             return
         if self.busy:
-            self.stage = "Aguarde a operação atual antes de trocar de conta."
+            self.stage = tr("Aguarde a operação atual antes de trocar de conta.")
             self._render()
             return
         if self.store.current().connected and not self.snapshot.status_known:
-            self.stage = "Aguarde a consulta da VM antes de trocar de conta."
+            self.stage = tr("Aguarde a consulta da VM antes de trocar de conta.")
             self._render()
             return
         if self.snapshot.session_exists or self.snapshot.local_ready:
-            self.stage = "Encerre a VM atual antes de trocar de conta."
+            self.stage = tr("Encerre a VM atual antes de trocar de conta.")
             self._render()
             return
         self.store.selected = profile_id
         self.store.save()
         self.snapshot = Snapshot()
-        self.stage = "Conta selecionada"
+        self.stage = tr("Conta selecionada")
         self._render()
         self._refresh_async()
 
     def _add_account(self) -> None:
         if self.store.current().connected and not self.snapshot.status_known:
-            self.stage = "Aguarde a consulta da VM antes de adicionar uma conta."
+            self.stage = tr("Aguarde a consulta da VM antes de adicionar uma conta.")
             self._render()
             return
         if self.busy or self.snapshot.session_exists or self.snapshot.local_ready:
-            self.stage = "Encerre a VM antes de adicionar outra conta."
+            self.stage = tr("Encerre a VM antes de adicionar outra conta.")
             self._render()
             return
-        dialog = ctk.CTkInputDialog(
-            text="Dê um nome para identificar esta conta.", title="Adicionar conta"
+        dialog = AccountDialog(
+            text=tr("Dê um nome para identificar esta conta."), title=tr("Adicionar conta")
         )
         label = dialog.get_input()
         if label is None:
@@ -620,21 +628,21 @@ class SessionWindow(ctk.CTk):
 
     def _submit_auth(self) -> None:
         if not self.process or not self.process.stdin:
-            self.stage = "Aguarde o pedido de autorização do Colab."
+            self.stage = tr("Aguarde o pedido de autorização do Colab.")
             self._render()
             return
         if self.auth_mode == "code":
             code = self.auth_code.get().strip()
             if not code:
-                self.stage = "Cole o código exibido pelo Google."
+                self.stage = tr("Cole o código exibido pelo Google.")
                 self._render()
                 return
             payload = (code + "\n").encode("utf-8")
             self.auth_code.delete(0, "end")
-            self._append_log("Código de autorização enviado ao Colab CLI.")
+            self._append_log(tr("Código de autorização enviado ao Colab CLI."))
         else:
             payload = b"\n"
-            self._append_log("Autorização do Drive concluída no navegador.")
+            self._append_log(tr("Autorização do Drive concluída no navegador."))
         try:
             self.process.stdin.write(payload)
             self.process.stdin.flush()
@@ -642,9 +650,9 @@ class SessionWindow(ctk.CTk):
             self.auth_url = ""
             self.cli_oauth_pending = False
             self.auth_panel.pack_forget()
-            self.stage = "Concluindo a autorização…"
+            self.stage = tr("Concluindo a autorização…")
         except (BrokenPipeError, OSError):
-            self.stage = "O pedido de autorização expirou. Tente novamente."
+            self.stage = tr("O pedido de autorização expirou. Tente novamente.")
         self._render()
 
     def _open_folder(self, subfolder: str) -> None:
@@ -656,43 +664,43 @@ class SessionWindow(ctk.CTk):
     def _on_close(self) -> None:
         if self.busy == "stop":
             self.exit_after_stop = True
-            self.stage = "O aplicativo fechará após desligar a VM."
+            self.stage = tr("O aplicativo fechará após desligar a VM.")
             self._render()
             return
         if self.busy == "start":
             ConfirmDialog(
                 self,
-                "Inicialização em andamento",
-                "Cancelar agora também encerra a sessão do Colab para não continuar consumindo créditos.",
+                tr("Inicialização em andamento"),
+                tr("Cancelar agora também encerra a sessão do Colab para não continuar consumindo créditos."),
                 [
-                    ("Voltar", lambda: None, "secondary"),
-                    ("Cancelar e desligar", self._cancel_and_exit, "primary"),
+                    (tr("Voltar"), lambda: None, "secondary"),
+                    (tr("Cancelar e desligar"), self._cancel_and_exit, "primary"),
                 ],
             )
             return
         if self.busy == "connect":
             ConfirmDialog(
                 self,
-                "Conexão em andamento",
-                "Você pode cancelar a autorização desta conta.",
+                tr("Conexão em andamento"),
+                tr("Você pode cancelar a autorização desta conta."),
                 [
-                    ("Voltar", lambda: None, "secondary"),
-                    ("Cancelar e sair", self._cancel_connect_and_exit, "primary"),
+                    (tr("Voltar"), lambda: None, "secondary"),
+                    (tr("Cancelar e sair"), self._cancel_connect_and_exit, "primary"),
                 ],
             )
             return
         if self.busy in {"restart", "drive", "image"}:
-            self.stage = "Aguarde a operação terminar antes de fechar o aplicativo."
+            self.stage = tr("Aguarde a operação terminar antes de fechar o aplicativo.")
             self._render()
             return
         if self.setup_error:
             ConfirmDialog(
                 self,
-                "Sessão não verificada",
-                "O aplicativo não conseguiu consultar o Colab. Verifique no Colab se há uma VM ativa após sair.",
+                tr("Sessão não verificada"),
+                tr("O aplicativo não conseguiu consultar o Colab. Verifique no Colab se há uma VM ativa após sair."),
                 [
-                    ("Voltar", lambda: None, "secondary"),
-                    ("Sair", self.destroy, "primary"),
+                    (tr("Voltar"), lambda: None, "secondary"),
+                    (tr("Sair"), self.destroy, "primary"),
                 ],
             )
             return
@@ -701,12 +709,12 @@ class SessionWindow(ctk.CTk):
         ):
             ConfirmDialog(
                 self,
-                "A VM ainda está ligada",
-                "Encerrar VM e sair atualiza a imagem do Drive e salva os outputs antes de desligar. Sair com VM ativa mantém o consumo de créditos e interrompe as cópias automáticas para o PC.",
+                tr("A VM ainda está ligada"),
+                tr("Encerrar VM e sair atualiza a imagem do Drive e salva os outputs antes de desligar. Sair com VM ativa mantém o consumo de créditos e interrompe as cópias automáticas para o PC."),
                 [
-                    ("Voltar", lambda: None, "secondary"),
-                    ("Sair com VM ativa", self.destroy, "secondary"),
-                    ("Encerrar VM e sair", self._stop_and_exit, "primary"),
+                    (tr("Voltar"), lambda: None, "secondary"),
+                    (tr("Sair com VM ativa"), self.destroy, "secondary"),
+                    (tr("Encerrar VM e sair"), self._stop_and_exit, "primary"),
                 ],
             )
             return
@@ -725,11 +733,11 @@ class SessionWindow(ctk.CTk):
         if self.download_active:
             ConfirmDialog(
                 self,
-                "Download em andamento",
-                "Aguarde a conclusão ou desligue a VM para interromper o download.",
+                tr("Download em andamento"),
+                tr("Aguarde a conclusão ou desligue a VM para interromper o download."),
                 [
-                    ("Aguardar", lambda: None, "secondary"),
-                    ("Desligar e sair", self._force_stop_and_exit, "primary"),
+                    (tr("Aguardar"), lambda: None, "secondary"),
+                    (tr("Desligar e sair"), self._force_stop_and_exit, "primary"),
                 ],
             )
             return

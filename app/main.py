@@ -1,6 +1,7 @@
 """Easy Comfy Colab: interface Windows com serviços assíncronos."""
 
 from __future__ import annotations
+from i18n import EN, LANGUAGES, get_language, set_language, tr
 import json
 import math
 import sys
@@ -39,6 +40,7 @@ class Dashboard(Shell, SessionWindow):
     def __init__(self, offline=False):
         self.offline = offline
         self.preferences = Preferences()
+        set_language(self.preferences.values["language"])
         self.history = History()
         self.ledger = SessionLedger()
         self.guard = IdleGuard()
@@ -79,7 +81,7 @@ class Dashboard(Shell, SessionWindow):
     def _initialize(self):
         if self.offline:
             self.events.put(
-                ("initialized", "Modo de prévia: nenhuma conexão será aberta.")
+                ("initialized", tr("Modo de prévia: nenhuma conexão será aberta."))
             )
         else:
             super()._initialize()
@@ -112,7 +114,7 @@ class Dashboard(Shell, SessionWindow):
             return
         self._accounts_signature = signature
         self.account_choices = {
-            f"{index + 1}. {p.label} · {p.email or 'não conectada'}": p.id
+            f"{index + 1}. {tr(p.label) if p.id == 'default' and p.label == 'Conta principal' else p.label} · {p.email or tr('não conectada')}": p.id
             for index, p in enumerate(self.store.profiles)
         }
         self.account_selector.configure(values=list(self.account_choices))
@@ -120,25 +122,27 @@ class Dashboard(Shell, SessionWindow):
             next(k for k, v in self.account_choices.items() if v == self.store.selected)
         )
         dest = [k for k, v in self.account_choices.items() if v != self.store.selected]
-        self.drive_destination.configure(values=dest or ["Adicione outra conta"])
-        self.drive_destination.set(dest[0] if dest else "Adicione outra conta")
+        self.drive_destination.configure(values=dest or [tr("Adicione outra conta")])
+        self.drive_destination.set(dest[0] if dest else tr("Adicione outra conta"))
         self.account_tree.delete(*self.account_tree.get_children())
         for p in self.store.profiles:
             self.account_tree.insert(
-                "", "end", iid=p.id, values=(p.label, p.email or "Não conectada", p.id)
+                "", "end", iid=p.id,
+                values=(tr(p.label) if p.id == "default" and p.label == "Conta principal" else p.label,
+                        p.email or tr("Não conectada"), p.id)
             )
         self.credential_status.configure(
             text="Hugging Face: "
             + (
-                "salvo"
+                tr("salvo")
                 if self.credentials.get(self.store.selected, "Hugging Face")
-                else "não cadastrado"
+                else tr("não cadastrado")
             )
             + "  ·  Civitai: "
             + (
-                "salvo"
+                tr("salvo")
                 if self.credentials.get(self.store.selected, "Civitai")
-                else "não cadastrado"
+                else tr("não cadastrado")
             )
         )
 
@@ -181,19 +185,19 @@ class Dashboard(Shell, SessionWindow):
             "mode"
         ) == "downloads" or s.hardware == "CPU"
         ready = s.session_exists and s.local_ready
-        status = "VM desligada"
+        status = tr("VM desligada")
         if self.setup_error:
             status = self.setup_error
         elif self.busy:
-            status = "Operação em andamento"
+            status = tr("Operação em andamento")
         elif not p.connected:
-            status = "Conecte a conta para começar"
+            status = tr("Conecte a conta para começar")
         elif ready:
-            status = "Downloads em CPU disponíveis" if cpu else "ComfyUI conectado"
+            status = tr("Downloads em CPU disponíveis") if cpu else tr("ComfyUI conectado")
         elif s.session_exists:
-            status = "VM ativa · conexão indisponível"
+            status = tr("VM ativa · conexão indisponível")
         elif not s.status_known:
-            status = "Consultando a sessão…"
+            status = tr("Consultando a sessão…")
         self.status_label.configure(
             text=status, text_color=COLORS["success"] if ready else COLORS["text"]
         )
@@ -209,38 +213,38 @@ class Dashboard(Shell, SessionWindow):
                 border_width=2 if selected else 1,
             )
         available = not self.busy and not self.setup_error
-        self.output_choice.set("Meu PC" if p.output_mode == "pc" else "Google Drive")
+        self.output_choice.set(tr("Meu PC") if p.output_mode == "pc" else "Google Drive")
         self.output_choice.configure(state="normal" if not self.busy and (s.status_known or not p.connected) else "disabled")
         active_mode = (self.remote_metrics or {}).get("output_mode")
         if ready and active_mode is None:
-            output_hint = "Destino ativo ainda não confirmado; sessões anteriores usam Drive. Reiniciar ComfyUI aplica a escolha sem desligar a VM."
+            output_hint = tr("Destino ativo ainda não confirmado; sessões anteriores usam Drive. Reiniciar ComfyUI aplica a escolha sem desligar a VM.")
         elif ready and active_mode != p.output_mode:
-            output_hint = "Destino atual: " + ("PC" if active_mode == "pc" else "Drive") + ". A escolha será aplicada ao clicar Reiniciar ComfyUI; a VM continua ligada."
+            output_hint = tr("Destino atual: ") + ("PC" if active_mode == "pc" else "Drive") + tr(". A escolha será aplicada ao clicar Reiniciar ComfyUI; a VM continua ligada.")
         elif p.output_mode == "pc":
-            output_hint = "PC: download automático com o app aberto e a fila vazia. Até copiar, o arquivo existe só no disco temporário da VM."
+            output_hint = tr("PC: download automático com o app aberto e a fila vazia. Até copiar, o arquivo existe só no disco temporário da VM.")
         else:
-            output_hint = "Drive: os resultados são gravados diretamente em ComfyColab/output."
-        self.output_hint.configure(text=output_hint + " A opção controla outputs; entradas e workflows continuam no Drive.")
+            output_hint = tr("Drive: os resultados são gravados diretamente em ComfyColab/output.")
+        self.output_hint.configure(text=output_hint + tr(" A opção controla outputs; entradas e workflows continuam no Drive."))
         start_text = (
-            "Conectar conta"
+            tr("Conectar conta")
             if not p.connected
             else (
-                "Reconectar sessão"
+                tr("Reconectar sessão")
                 if s.session_exists
-                else "Iniciar downloads CPU"
+                else tr("Iniciar downloads CPU")
                 if p.gpu == "CPU"
-                else "Iniciar sessão"
+                else tr("Iniciar sessão")
             )
         )
         self.start_button.configure(
-            text="Iniciando…" if self.busy == "start" else start_text,
+            text=tr("Iniciando…") if self.busy == "start" else start_text,
             state="normal"
             if available and (not p.connected or s.status_known) and not ready
             else "disabled",
             command=self._start,
         )
         self.stop_button.configure(
-            text="Cancelar início" if self.busy == "start" else "Encerrar VM",
+            text=tr("Cancelar início") if self.busy == "start" else tr("Encerrar VM"),
             state="normal"
             if self.busy == "start"
             or (available and (s.session_exists or not s.status_known))
@@ -256,7 +260,7 @@ class Dashboard(Shell, SessionWindow):
             state="normal" if ready and available and not cpu else "disabled"
         )
         self.image_button.configure(
-            text="Atualizando imagem…" if self.busy == "image" else "Atualizar imagem do Drive",
+            text=tr("Atualizando imagem…") if self.busy == "image" else tr("Atualizar imagem do Drive"),
             state="normal" if ready and available and not cpu else "disabled",
         )
         self.reconnect_button.configure(
@@ -275,16 +279,16 @@ class Dashboard(Shell, SessionWindow):
         self.add_account_button.configure(state="normal" if available else "disabled")
         if self.auth_mode and self.auth_url:
             self.auth_panel.pack(fill="x", pady=(14, 0))
-            self.auth_title.configure(text="Autorizar acesso ao Google")
+            self.auth_title.configure(text=tr("Autorizar acesso ao Google"))
             self.auth_detail.configure(
-                text="Confira a conta e as permissões solicitadas no navegador. Depois conclua aqui."
+                text=tr("Confira a conta e as permissões solicitadas no navegador. Depois conclua aqui.")
             )
             if self.auth_mode == "code":
                 self.auth_code.pack(side="left", padx=(0, 8))
-                self.auth_submit_button.configure(text="Enviar código")
+                self.auth_submit_button.configure(text=tr("Enviar código"))
             else:
                 self.auth_code.pack_forget()
-                self.auth_submit_button.configure(text="Já autorizei")
+                self.auth_submit_button.configure(text=tr("Já autorizei"))
         else:
             self.auth_panel.pack_forget()
 
@@ -309,9 +313,9 @@ class Dashboard(Shell, SessionWindow):
             return
         if operation == "drive":
             self.notice(
-                "Operação no Drive concluída."
+                tr("Operação no Drive concluída.")
                 if code == 0
-                else "A operação no Drive parou. Consulte a atividade e tente retomar.",
+                else tr("A operação no Drive parou. Consulte a atividade e tente retomar."),
                 code != 0,
             )
         if operation == "stop":
@@ -325,7 +329,7 @@ class Dashboard(Shell, SessionWindow):
         if self.busy:
             return
         profile = self.store.current()
-        profile.output_mode = "pc" if value == "Meu PC" else "drive"
+        profile.output_mode = "pc" if value == tr("Meu PC") else "drive"
         self.store.save()
         self._render()
 
@@ -340,9 +344,9 @@ class Dashboard(Shell, SessionWindow):
                     result = self.gateway.run(profile, "bash", f"{self.gateway.linux_root()}/app/output_control.sh", timeout=600)
                     text = (result.stdout if result.returncode == 0 else result.stderr).strip()
                     if result.returncode:
-                        text = "Outputs não confirmados no PC. A VM precisa permanecer ligada. " + text[-200:]
+                        text = tr("Outputs não confirmados no PC. A VM precisa permanecer ligada. ") + text[-200:]
                 except Exception:
-                    text = "Sem confirmação da cópia de outputs. Reconecte antes de encerrar."
+                    text = tr("Sem confirmação da cópia de outputs. Reconecte antes de encerrar.")
                 self.events.put(("ui", lambda: self._outputs_synced(profile.id, text)))
             threading.Thread(target=work, daemon=True).start()
         self.after(15000, self._sync_outputs)
@@ -354,7 +358,7 @@ class Dashboard(Shell, SessionWindow):
 
     def _tick(self):
         self.elapsed_label.configure(
-            text="Tempo desta operação: "
+            text=tr("Tempo desta operação: ")
             + duration(time.monotonic() - self.operation_started)
             if self.busy
             else ""
@@ -362,7 +366,7 @@ class Dashboard(Shell, SessionWindow):
         if self.idle_countdown is not None:
             remaining = max(0, int(self.idle_countdown - time.time()))
             self.notice_label.configure(
-                text=f"VM ociosa. Encerramento em {remaining}s. Use “Manter sessão” para cancelar."
+                text=tr("VM ociosa. Encerramento em {p0}s. Use “Manter sessão” para cancelar.", p0=remaining)
             )
             if remaining == 0:
                 can_stop = self.guard.update(
@@ -387,11 +391,11 @@ class Dashboard(Shell, SessionWindow):
             self._record_session(self.store.current())
         if observed:
             self.credit_help.configure(
-                text="Tempo acompanhado: "
+                text=tr("Tempo acompanhado: ")
                 + duration(time.time() - observed["started"])
-                + " · Consumo estimado observado da conta: "
+                + tr(" · Consumo estimado observado da conta: ")
                 + format_units(observed["cost"], " CU")
-                + " · Não inclui períodos sem leitura."
+                + tr(" · Não inclui períodos sem leitura.")
             )
 
     def _telemetry(self):
@@ -443,7 +447,7 @@ class Dashboard(Shell, SessionWindow):
             if not data:
                 for key in ("cpu", "ram", "extra"):
                     self.monitor_labels[prefix + "_" + key].configure(
-                        text="Sem leitura da VM · conecte ou atualize a sessão."
+                        text=tr("Sem leitura da VM · conecte ou atualize a sessão.")
                     )
                 for key in ("cpu", "ram"):
                     self.monitor_bars[prefix + "_" + key].set(0)
@@ -453,15 +457,15 @@ class Dashboard(Shell, SessionWindow):
             )
             self.monitor_bars[prefix + "_cpu"].set(data["cpu_percent"] / 100)
             self.monitor_labels[prefix + "_ram"].configure(
-                text=f"RAM · {size(data['ram_used'])} usados de {size(data['ram_total'])}"
+                text=tr("RAM · {p0} usados de {p1}", p0=size(data['ram_used']), p1=size(data['ram_total']))
             )
             self.monitor_bars[prefix + "_ram"].set(
                 data["ram_used"] / max(data["ram_total"], 1)
             )
             self.monitor_labels[prefix + "_extra"].configure(
-                text=f"Disponível: {size(data['ram_available'])}"
+                text=tr("Disponível: {p0}", p0=size(data['ram_available']))
                 + (
-                    f" · Aplicativo: {size(data['app_ram'])}"
+                    tr(" · Aplicativo: {p0}", p0=size(data['app_ram']))
                     if prefix == "local"
                     else ""
                 )
@@ -473,14 +477,14 @@ class Dashboard(Shell, SessionWindow):
                     f"{g['name']} · GPU {g['percent']:.0f}% · VRAM {size(g['used'])} / {size(g['total'])} · {g['temperature']:.0f} °C"
                     for g in gpu
                 )
-                + f"\nDisco temporário livre: {size(remote['disk_free'])} de {size(remote['disk_total'])}"
+                + tr("\nDisco temporário livre: {p0} de {p1}", p0=size(remote['disk_free']), p1=size(remote['disk_total']))
             )
             self.gpu_bar.set(gpu[0]["used"] / gpu[0]["total"] if gpu else 0)
         else:
             self.gpu_bar.set(0)
-            self.gpu_label.configure(text="Sem dados recentes da GPU.")
+            self.gpu_label.configure(text=tr("Sem dados recentes da GPU."))
         self.monitor_status.configure(
-            text=error or "Última leitura: " + time.strftime("%H:%M:%S")
+            text=error or tr("Última leitura: ") + time.strftime("%H:%M:%S")
         )
         should_stop = self.guard.update(
             remote,
@@ -495,11 +499,11 @@ class Dashboard(Shell, SessionWindow):
             self.idle_countdown = time.time() + 30
             self.idle_dialog = ConfirmDialog(
                 self,
-                "Sessão ociosa",
-                "A VM será encerrada em 30 segundos se continuar sem geração ou download.",
+                tr("Sessão ociosa"),
+                tr("A VM será encerrada em 30 segundos se continuar sem geração ou download."),
                 [
-                    ("Manter sessão", self._keep_session, "primary"),
-                    ("Encerrar agora", lambda: self._stop(automatic=True), "secondary"),
+                    (tr("Manter sessão"), self._keep_session, "primary"),
+                    (tr("Encerrar agora"), lambda: self._stop(automatic=True), "secondary"),
                 ],
                 on_cancel=self._keep_session,
             )
@@ -509,9 +513,9 @@ class Dashboard(Shell, SessionWindow):
         ):
             if not self.low_alerted:
                 self.notice(
-                    "Saldo baixo: "
+                    tr("Saldo baixo: ")
                     + format_units(self.snapshot.balance, " CU")
-                    + ". Confira o consumo antes de continuar."
+                    + tr(". Confira o consumo antes de continuar.")
                 )
                 self.low_alerted = True
         else:
@@ -523,7 +527,7 @@ class Dashboard(Shell, SessionWindow):
         if force or self.busy:
             return super()._stop(force=force)
         if self.operation_busy:
-            self.notice("Aguarde o envio do lote de downloads antes de encerrar.")
+            self.notice(tr("Aguarde o envio do lote de downloads antes de encerrar."))
             return
         profile = self.store.selected
 
@@ -550,14 +554,14 @@ class Dashboard(Shell, SessionWindow):
             elif busy or not known:
                 ConfirmDialog(
                     self,
-                    "Encerrar VM",
-                    "Há geração/download em andamento. Encerrar interrompe essas tarefas."
+                    tr("Encerrar VM"),
+                    tr("Há geração/download em andamento. Encerrar interrompe essas tarefas.")
                     if busy
-                    else "Não foi possível verificar a fila. Encerrar pode interromper tarefas na VM.",
+                    else tr("Não foi possível verificar a fila. Encerrar pode interromper tarefas na VM."),
                     [
-                        ("Voltar", lambda: None, "secondary"),
+                        (tr("Voltar"), lambda: None, "secondary"),
                         (
-                            "Encerrar mesmo assim",
+                            tr("Encerrar mesmo assim"),
                             lambda: self._stop(force=True),
                             "primary",
                         ),
@@ -571,7 +575,7 @@ class Dashboard(Shell, SessionWindow):
     def _keep_session(self):
         self.guard.since = None
         self._dismiss_idle()
-        self.notice("Sessão mantida. O período de inatividade recomeçou.")
+        self.notice(tr("Sessão mantida. O período de inatividade recomeçou."))
 
     def _dismiss_idle(self):
         self.idle_countdown = None
@@ -598,7 +602,7 @@ class Dashboard(Shell, SessionWindow):
 
     def _submit_downloads(self):
         if not self.snapshot.local_ready or self.busy or self.operation_busy:
-            self.notice("Inicie uma sessão antes de adicionar downloads.")
+            self.notice(tr("Inicie uma sessão antes de adicionar downloads."))
             return
         try:
             entries = []
@@ -614,9 +618,9 @@ class Dashboard(Shell, SessionWindow):
                     )
                 )
             if not entries:
-                raise ValueError("Cole ao menos um link de arquivo.")
+                raise ValueError(tr("Cole ao menos um link de arquivo."))
             if len(entries) > 100:
-                raise ValueError("Adicione até 100 links por lote.")
+                raise ValueError(tr("Adicione até 100 links por lote."))
         except ValueError as exc:
             self.notice(str(exc), True)
             return
@@ -651,7 +655,7 @@ class Dashboard(Shell, SessionWindow):
         if not errors:
             self.urls.delete("1.0", "end")
         self.notice(
-            f"{count} download(s) adicionados à fila."
+            tr("{p0} download(s) adicionados à fila.", p0=count)
             + (" " + "\n".join(errors) if errors else ""),
             bool(errors),
         )
@@ -677,7 +681,7 @@ class Dashboard(Shell, SessionWindow):
                 iid=job["id"],
                 values=(
                     job["name"],
-                    STATUS.get(job["status"], job["status"]),
+                    tr(STATUS.get(job["status"], job["status"])),
                     progress,
                     size(job.get("speed", 0)) + "/s",
                     duration(job.get("eta")),
@@ -686,11 +690,11 @@ class Dashboard(Shell, SessionWindow):
         if selected and self.download_tree.exists(selected[0]):
             self.download_tree.selection_set(selected[0])
         self.download_hint.configure(
-            text=f"{len(self.jobs)} itens no histórico deste Drive. "
+            text=tr("{p0} itens no histórico deste Drive. ", p0=len(self.jobs))
             + (
-                "Há transferências em andamento."
+                tr("Há transferências em andamento.")
                 if self.download_active
-                else "Nenhum download em andamento."
+                else tr("Nenhum download em andamento.")
             )
         )
 
@@ -700,7 +704,7 @@ class Dashboard(Shell, SessionWindow):
 
     def _cancel_download(self):
         if not self.snapshot.local_ready:
-            self.notice("Reconecte a sessão para cancelar downloads.")
+            self.notice(tr("Reconecte a sessão para cancelar downloads."))
             return
         job = self._selected_job()
         if job:
@@ -709,33 +713,33 @@ class Dashboard(Shell, SessionWindow):
                     "comfy-colab/model-download/" + job["id"] + "/cancel", {}
                 ),
                 lambda _: self.notice(
-                    "Cancelamento solicitado. O parcial permanece no Drive."
+                    tr("Cancelamento solicitado. O parcial permanece no Drive.")
                 ),
             )
         else:
-            self.notice("Selecione um download na lista.")
+            self.notice(tr("Selecione um download na lista."))
 
     def _retry_download(self):
         if not self.snapshot.local_ready:
-            self.notice("Inicie uma sessão para retomar downloads.")
+            self.notice(tr("Inicie uma sessão para retomar downloads."))
             return
         job = self._selected_job()
         if not job:
-            self.notice("Selecione um download na lista.")
+            self.notice(tr("Selecione um download na lista."))
             return
         if job["status"] in ("running", "queued", "cancelling"):
-            self.notice("Esse download ainda está em andamento.")
+            self.notice(tr("Esse download ainda está em andamento."))
             return
         provider = "Hugging Face" if "huggingface.co/" in job["url"] else "Civitai"
         token = self.credentials.get(self.store.selected, provider)
         self._async(
             lambda: start_download(job["url"], job["name"], job["directory"], token),
-            lambda _: self.notice("Download recolocado na fila."),
+            lambda _: self.notice(tr("Download recolocado na fila.")),
         )
 
     def _load_library(self):
         if not self.snapshot.local_ready:
-            self.notice("Inicie uma sessão para consultar a biblioteca.")
+            self.notice(tr("Inicie uma sessão para consultar a biblioteca."))
             return
         profile = self.store.selected
 
@@ -745,7 +749,7 @@ class Dashboard(Shell, SessionWindow):
             self.models = data["models"]
             self._render_library()
             self.library_hint.configure(
-                text=f"{len(self.models)} modelos · {size(sum(m['bytes'] for m in self.models))} · destino: Meu Drive / ComfyColab / models"
+                text=tr("{p0} modelos · {p1} · destino: Meu Drive / ComfyColab / models", p0=len(self.models), p1=size(sum(m['bytes'] for m in self.models)))
             )
 
         self._async(lambda: _json_request("comfy-colab/models"), done)
@@ -769,7 +773,7 @@ class Dashboard(Shell, SessionWindow):
 
     def _cache_action(self, action, payload=None):
         if self.offline or not self.cache_state or self.busy or self.cache_pending:
-            self.notice("Conecte a versão atualizada do ComfyUI para preparar os modelos.")
+            self.notice(tr("Conecte a versão atualizada do ComfyUI para preparar os modelos."))
             return
         profile = self.store.selected
         self.cache_pending = True
@@ -790,10 +794,10 @@ class Dashboard(Shell, SessionWindow):
                 self.cache_state = state
             self.cache_profile = None
             self._render_cache()
-            self.notice(error or {"prepare": "Preparação iniciada na VM. Acompanhe abaixo; pode fechar o app.",
-                                  "settings": "Preferências do cache salvas neste Drive.",
-                                  "clear": "Cache temporário removido. Modelos do Drive preservados.",
-                                  "cancel": "Cancelamento solicitado. Cópias completas serão preservadas."}[action], bool(error))
+            self.notice(error or {"prepare": tr("Preparação iniciada na VM. Acompanhe abaixo; pode fechar o app."),
+                                  "settings": tr("Preferências do cache salvas neste Drive."),
+                                  "clear": tr("Cache temporário removido. Modelos do Drive preservados."),
+                                  "cancel": tr("Cancelamento solicitado. Cópias completas serão preservadas.")}[action], bool(error))
 
         self._async(work, done)
 
@@ -803,18 +807,18 @@ class Dashboard(Shell, SessionWindow):
     def _prepare_cache(self):
         selected = list(self.library_tree.selection())
         if not selected:
-            self.notice("Selecione os modelos na biblioteca com Ctrl ou use Selecionar por workflow.")
+            self.notice(tr("Selecione os modelos na biblioteca com Ctrl ou use Selecionar por workflow."))
             return
         if not self.cache_enabled.get():
-            self.notice("Ative Usar cache da VM antes de preparar os modelos.")
+            self.notice(tr("Ative Usar cache da VM antes de preparar os modelos."))
             return
         self._cache_action("prepare", dict(self._cache_options(), models=selected))
 
     def _select_cache_workflow(self):
         if not self.snapshot.local_ready:
-            self.notice("Conecte a VM para consultar os modelos do workflow.")
+            self.notice(tr("Conecte a VM para consultar os modelos do workflow."))
             return
-        path = filedialog.askopenfilename(title="Selecionar modelos do workflow", filetypes=[("Workflow ComfyUI", "*.json")])
+        path = filedialog.askopenfilename(title=tr("Selecionar modelos do workflow"), filetypes=[(tr("Workflow ComfyUI"), "*.json")])
         if not path:
             return
         profile = self.store.selected
@@ -832,8 +836,8 @@ class Dashboard(Shell, SessionWindow):
             self.library_tree.selection_set(sorted(selected))
             if selected:
                 self.library_tree.see(sorted(selected)[0])
-            self.notice(f"{len(selected)} modelos selecionados. Confira a lista e clique em Preparar selecionados."
-                        + (" Não selecionados: " + "; ".join(unresolved) if unresolved else ""))
+            self.notice(tr("{p0} modelos selecionados. Confira a lista e clique em Preparar selecionados.", p0=len(selected))
+                        + (tr(" Não selecionados: ") + "; ".join(unresolved) if unresolved else ""))
 
         self._async(work, done)
 
@@ -850,7 +854,7 @@ class Dashboard(Shell, SessionWindow):
         if not state:
             self.cache_tree.delete(*self.cache_tree.get_children())
             self._cache_items_signature = None
-            self.cache_hint.configure(text="Conecte o ComfyUI atualizado para usar o cache. Na sessão antiga, use Reiniciar ComfyUI quando a fila estiver vazia.")
+            self.cache_hint.configure(text=tr("Conecte o ComfyUI atualizado para usar o cache. Na sessão antiga, use Reiniciar ComfyUI quando a fila estiver vazia."))
             return
         if self.cache_profile != self.store.selected:
             settings = state["settings"]
@@ -858,10 +862,10 @@ class Dashboard(Shell, SessionWindow):
                 widget.select() if settings[key] else widget.deselect()
             self.cache_limit.set(str(settings["ram_gib"]) + " GiB")
             self.cache_profile = self.store.selected
-        labels = dict(idle="Aguardando seleção", queued="Na fila", copying="Copiando para a VM",
-                      warming="Preparando RAM", waiting="Aguardando a geração terminar",
-                      cached="Cache pronto", warm="Pré-leitura concluída", complete="Preparação concluída",
-                      error="Falha", cancelled="Cancelado")
+        labels = dict(idle=tr("Aguardando seleção"), queued=tr("Na fila"), copying=tr("Copiando para a VM"),
+                      warming=tr("Preparando RAM"), waiting=tr("Aguardando a geração terminar"),
+                      cached=tr("Cache pronto"), warm=tr("Pré-leitura concluída"), complete=tr("Preparação concluída"),
+                      error=tr("Falha"), cancelled=tr("Cancelado"))
         items = state.get("items", [])
         signature = json.dumps(items, sort_keys=True)
         if getattr(self, "_cache_items_signature", None) != signature:
@@ -870,13 +874,13 @@ class Dashboard(Shell, SessionWindow):
             for item in items:
                 detail = item.get("error") or item.get("note") or f"{size(item['bytes'])} / {size(item['total'])}"
                 if item["status"] == "warming":
-                    detail = f"{size(item.get('warm_bytes', 0))} / {size(item['total'])} lidos"
+                    detail = tr("{p0} / {p1} lidos", p0=size(item.get('warm_bytes', 0)), p1=size(item['total']))
                 self.cache_tree.insert("", "end", values=(item["path"], labels.get(item["status"], item["status"]), detail))
             self.cache_tree.yview_moveto(view[0] if view else 0)
             self._cache_items_signature = signature
         self.cache_hint.configure(text=(state.get("error") or labels.get(state["status"], state["status"]))
-                                  + f" · {len(items)} arquivos · {state.get('seconds', 0):.1f}s"
-                                  + ("\nÚltimo modelo lido pelo cache: " + state["last_loaded"] if state.get("last_loaded") else ""))
+                                  + tr(" · {p0} arquivos · {p1:.1f}s", p0=len(items), p1=state.get('seconds', 0))
+                                  + (tr("\nÚltimo modelo lido pelo cache: ") + state["last_loaded"] if state.get("last_loaded") else ""))
 
     def _save_credentials(self):
         try:
@@ -890,7 +894,7 @@ class Dashboard(Shell, SessionWindow):
                     )
                     field.delete(0, "end")
             self._accounts_signature = None
-            self.notice("Credenciais salvas e protegidas neste Windows.")
+            self.notice(tr("Credenciais salvas e protegidas neste Windows."))
         except Exception as exc:
             self.notice(str(exc), True)
 
@@ -899,13 +903,13 @@ class Dashboard(Shell, SessionWindow):
             for provider in ("Hugging Face", "Civitai"):
                 self.credentials.set(self.store.selected, provider, "")
             self._accounts_signature = None
-            self.notice("Credenciais removidas da conta selecionada.")
+            self.notice(tr("Credenciais removidas da conta selecionada."))
 
         ConfirmDialog(
             self,
-            "Remover credenciais",
-            "Remove os tokens de download salvos para a conta selecionada.",
-            [("Cancelar", lambda: None, "secondary"), ("Remover", remove, "primary")],
+            tr("Remover credenciais"),
+            tr("Remove os tokens de download salvos para a conta selecionada."),
+            [(tr("Cancelar"), lambda: None, "secondary"), (tr("Remover"), remove, "primary")],
         )
 
     def _save_preferences(self):
@@ -919,7 +923,7 @@ class Dashboard(Shell, SessionWindow):
             ):
                 raise ValueError()
         except ValueError:
-            self.notice("Use de 0 a 1440 minutos e um saldo entre 0 e 100000.", True)
+            self.notice(tr("Use de 0 a 1440 minutos e um saldo entre 0 e 100000."), True)
             return
         self.preferences.values.update(
             idle_minutes=minutes,
@@ -930,37 +934,113 @@ class Dashboard(Shell, SessionWindow):
         self.guard.since = None
         self._dismiss_idle()
         self.notice(
-            "Preferências salvas. "
+            tr("Preferências salvas. ")
             + (
-                "Encerramento por inatividade ativado."
+                tr("Encerramento por inatividade ativado.")
                 if minutes
-                else "Encerramento automático desativado."
+                else tr("Encerramento automático desativado.")
             )
         )
 
+    def _change_language(self, label):
+        language = next((key for key, value in LANGUAGES.items() if value == label), None)
+        previous = get_language()
+        if language is None or language == previous:
+            return
+        self.preferences.values["language"] = language
+        try:
+            self.preferences.save()
+        except OSError as exc:
+            self.preferences.values["language"] = previous
+            self.language_choice.set(LANGUAGES[previous])
+            self.notice(tr("Não foi possível salvar o idioma: {error}", error=str(exc)), True)
+            return
+
+        # Rebuild only presentation; connections, workers and timers keep running.
+        page = self.current_page
+        views = {name: frame._parent_canvas.yview()[0] for name, frame in self.pages.items()}
+        entries = {name: getattr(self, name).get() for name in (
+            "search", "drive_folder", "hf_token", "civit_token", "idle_entry", "balance_entry", "auth_code")}
+        choices = {name: getattr(self, name).get() for name in ("category", "parallel", "cache_limit")}
+        checks = {name: getattr(self, name).get() for name in ("auto_open", "cache_enabled", "cache_warm")}
+        texts = {name: getattr(self, name).get("1.0", "end-1c") for name in ("urls", "log_box")}
+        selected = {name: getattr(self, name).selection() for name in ("library_tree", "download_tree")}
+        destination = self.account_choices.get(self.drive_destination.get())
+        rows = [self.workflow_tree.item(item, "values") for item in self.workflow_tree.get_children()]
+        reverse = {value: key for key, value in EN.items()} if previous == "en" else {}
+        rows = [(reverse.get(row[0], row[0]), row[1], reverse.get(row[2], row[2])) for row in rows]
+        for sequence, binding in self._scroll_bindings.items():
+            self.tk.call("bind", "all", sequence, binding)
+        for command in self._ui_root_commands:
+            self.deletecommand(command)
+        for widget in self.winfo_children():
+            if widget.winfo_toplevel() == self:
+                widget.destroy()
+        set_language(language)
+        self.setup_error = tr(reverse.get(self.setup_error, self.setup_error))
+        self._visible_page = None
+        self._accounts_signature = None
+        self.cache_profile = None
+        self._cache_items_signature = None
+        self._build_ui()
+        for name, value in entries.items():
+            widget = getattr(self, name)
+            widget.delete(0, "end")
+            widget.insert(0, value)
+        for name, value in choices.items():
+            getattr(self, name).set(value)
+        for name, value in checks.items():
+            widget = getattr(self, name)
+            widget.select() if value else widget.deselect()
+        for name, value in texts.items():
+            widget = getattr(self, name)
+            widget.configure(state="normal")
+            widget.delete("1.0", "end")
+            widget.insert("1.0", value)
+        self.log_box.configure(state="disabled")
+        for row in rows:
+            detail = row[1]
+            if row[0] == "Verificação concluída" and detail.split()[0].isdigit():
+                detail = tr("{count} nodes inspecionados", count=detail.split()[0])
+            self.workflow_tree.insert("", "end", values=(tr(row[0]), detail, tr(row[2])))
+        self._render_downloads()
+        self._render_library()
+        for name, items in selected.items():
+            tree = getattr(self, name)
+            tree.selection_set([item for item in items if tree.exists(item)])
+        self.notice(tr("Idioma atualizado."))
+        self.destination_label.configure(text=tr("Destino: Meu Drive / ComfyColab / models / ") + self.category.get())
+        for name, profile in self.account_choices.items():
+            if profile == destination:
+                self.drive_destination.set(name)
+        self.show_page(page)
+        self.update_idletasks()
+        for name, position in views.items():
+            self.pages[name]._parent_canvas.yview_moveto(position)
+
     def _drive_action(self, action):
         if self.busy:
-            self.notice("Aguarde a operação atual.")
+            self.notice(tr("Aguarde a operação atual."))
             return
         if self.offline:
-            self.notice("Prévia local: conexão com Drive desativada.")
+            self.notice(tr("Prévia local: conexão com Drive desativada."))
             return
         source = self.store.current()
         if not source.connected or not source.email:
             self.notice(
-                "Conecte a conta de origem ao Colab antes de autorizar o Drive.", True
+                tr("Conecte a conta de origem ao Colab antes de autorizar o Drive."), True
             )
             return
         destid = self.account_choices.get(self.drive_destination.get())
         dest = next((p for p in self.store.profiles if p.id == destid), None)
         if action != "authorize" and not dest:
             self.notice(
-                "Adicione uma segunda conta antes de transferir arquivos.", True
+                tr("Adicione uma segunda conta antes de transferir arquivos."), True
             )
             return
         if action != "authorize" and (not dest.connected or not dest.email):
             self.notice(
-                "Conecte a conta de destino ao Colab antes de transferir arquivos.",
+                tr("Conecte a conta de destino ao Colab antes de transferir arquivos."),
                 True,
             )
             return
@@ -968,7 +1048,7 @@ class Dashboard(Shell, SessionWindow):
         if folder != "ComfyColab" and not __import__("re").fullmatch(
             r"[A-Za-z0-9_-]+", folder
         ):
-            self.notice("Informe ComfyColab ou apenas o ID da pasta.", True)
+            self.notice(tr("Informe ComfyColab ou apenas o ID da pasta."), True)
             return
 
         def launch():
@@ -990,21 +1070,21 @@ class Dashboard(Shell, SessionWindow):
 
         if action in ("copy", "share"):
             detail = (
-                f"Origem: {source.email or source.label}\nDestino: {dest.email or dest.label}\n"
+                tr("Origem: {p0}\nDestino: {p1}\n", p0=source.email or source.label, p1=dest.email or dest.label)
                 + (
-                    "Copiar arquivos e conceder leitura da origem ao destino."
+                    tr("Copiar arquivos e conceder leitura da origem ao destino.")
                     if action == "copy"
-                    else "Compartilhar models com permissão de edição nas duas contas."
+                    else tr("Compartilhar models com permissão de edição nas duas contas.")
                 )
             )
             ConfirmDialog(
                 self,
-                "Confirmar " + ("cópia" if action == "copy" else "compartilhamento"),
+                tr("Confirmar ") + (tr("cópia") if action == "copy" else tr("compartilhamento")),
                 detail,
                 [
-                    ("Cancelar", lambda: None, "secondary"),
+                    (tr("Cancelar"), lambda: None, "secondary"),
                     (
-                        "Copiar / retomar" if action == "copy" else "Compartilhar",
+                        tr("Copiar / retomar") if action == "copy" else tr("Compartilhar"),
                         launch,
                         "primary",
                     ),
@@ -1015,10 +1095,10 @@ class Dashboard(Shell, SessionWindow):
 
     def _check_workflow(self):
         if not self.snapshot.local_ready:
-            self.notice("Conecte o ComfyUI antes de verificar dependências.")
+            self.notice(tr("Conecte o ComfyUI antes de verificar dependências."))
             return
         path = filedialog.askopenfilename(
-            title="Verificar workflow", filetypes=[("Workflow ComfyUI", "*.json")]
+            title=tr("Verificar workflow"), filetypes=[(tr("Workflow ComfyUI"), "*.json")]
         )
         if not path:
             return
@@ -1034,20 +1114,20 @@ class Dashboard(Shell, SessionWindow):
             self.workflow_tree.delete(*self.workflow_tree.get_children())
             for row in rows:
                 self.workflow_tree.insert("", "end", values=row)
-            self.notice("Verificação concluída: " + Path(path).name)
+            self.notice(tr("Verificação concluída: ") + Path(path).name)
 
         self._async(work, done)
 
     def _render_history(self):
         self.history_tree.delete(*self.history_tree.get_children())
         names = {
-            "start": "Iniciar",
-            "stop": "Encerrar",
-            "connect": "Conectar",
-            "restart": "Reiniciar",
+            "start": tr("Iniciar"),
+            "stop": tr("Encerrar"),
+            "connect": tr("Conectar"),
+            "restart": tr("Reiniciar"),
             "drive": "Google Drive",
-            "image": "Atualizar imagem",
-            "session": "Sessão observada",
+            "image": tr("Atualizar imagem"),
+            "session": tr("Sessão observada"),
         }
         for h in reversed(self.history.rows):
             self.history_tree.insert(
@@ -1060,7 +1140,7 @@ class Dashboard(Shell, SessionWindow):
                     h["gpu"],
                     duration(h["seconds"]),
                     format_units(h.get("estimated_cu")),
-                    h["result"],
+                    tr(h["result"]),
                 ),
             )
 
@@ -1075,7 +1155,7 @@ class Dashboard(Shell, SessionWindow):
                 json.dumps(self.history.rows, ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
-            self.notice("Histórico exportado.")
+            self.notice(tr("Histórico exportado."))
 
     def _export_diagnostics(self):
         target = filedialog.asksaveasfilename(
@@ -1099,7 +1179,7 @@ class Dashboard(Shell, SessionWindow):
                 ),
                 encoding="utf-8",
             )
-            self.notice("Diagnóstico exportado sem tokens ou chaves.")
+            self.notice(tr("Diagnóstico exportado sem tokens ou chaves."))
 
 
 def main():

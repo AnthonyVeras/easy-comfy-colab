@@ -1,6 +1,7 @@
 """Perfis locais e comandos do Colab CLI executados no Ubuntu WSL."""
 
 from __future__ import annotations
+from i18n import tr
 
 import json
 import os
@@ -220,16 +221,16 @@ class Gateway:
         )
         missing = [name for name in required if not (self.root / name).is_file()]
         if missing:
-            return "Arquivos do projeto ausentes ao lado do aplicativo: " + ", ".join(
+            return tr("Arquivos do projeto ausentes ao lado do aplicativo: ") + ", ".join(
                 missing
             )
         try:
             profile = ProfileStore().current()
             result = self.run(profile, "@check", timeout=15)
         except (OSError, subprocess.TimeoutExpired, RuntimeError) as exc:
-            return f"WSL indisponível: {exc}. Execute Setup.ps1."
+            return tr("WSL indisponível: {error}. Execute Setup.ps1.", error=str(exc))
         if result.returncode:
-            return "Ambiente WSL não preparado. Execute Setup.ps1 na pasta do projeto."
+            return tr("Ambiente WSL não preparado. Execute Setup.ps1 na pasta do projeto.")
         return ""
 
     def linux_root(self) -> str:
@@ -245,7 +246,7 @@ class Gateway:
             creationflags=WINDOWS_NO_CONSOLE,
         )
         if result.returncode != 0 or not result.stdout.strip():
-            raise RuntimeError("Não foi possível localizar o projeto no Ubuntu WSL.")
+            raise RuntimeError(tr("Não foi possível localizar o projeto no Ubuntu WSL."))
         self._linux_root = result.stdout.strip()
         return self._linux_root
 
@@ -253,11 +254,11 @@ class Gateway:
         self, profile: Profile, *command: str, gpu: str | None = None
     ) -> list[str]:
         if profile.output_mode not in {"pc", "drive"}:
-            raise ValueError("Destino de outputs inválido.")
+            raise ValueError(tr("Destino de outputs inválido."))
         variables = [f"COMFY_PROFILE_ID={profile.id}", "COMFY_APP_MODE=1", f"COMFY_OUTPUT_MODE={profile.output_mode}", f"COMFY_MEDIA_ROOT={profile.media_data}"]
         if gpu:
             if gpu not in GPU_CHOICES:
-                raise ValueError("GPU inválida")
+                raise ValueError(tr("GPU inválida"))
             variables.append(f"COMFY_GPU={gpu}")
         return [*wsl_prefix(), "env", *variables, "bash", f"{self.linux_root()}/app/wsl_exec.sh", *command]
 
@@ -290,7 +291,7 @@ class Gateway:
     def ensure_profile_home(self, profile: Profile) -> None:
         result = self.run(profile, "true")
         if result.returncode:
-            raise RuntimeError("Não foi possível preparar o perfil no WSL.")
+            raise RuntimeError(tr("Não foi possível preparar o perfil no WSL."))
 
     def cli_command(self, profile: Profile, *subcommand: str) -> tuple[str, ...]:
         return (CLI, *subcommand)
@@ -304,7 +305,7 @@ class Gateway:
                     parse_usage(usage.stdout)
                 )
             else:
-                snapshot.error = "Não foi possível consultar os créditos. Verifique a conta e a conexão."
+                snapshot.error = tr("Não foi possível consultar os créditos. Verifique a conta e a conexão.")
             status = self.run(
                 profile,
                 *self.cli_command(profile, "status", "-s", "comfy-colab"),
@@ -316,9 +317,9 @@ class Gateway:
                     parse_status(status.stdout)
                 )
             elif not snapshot.error:
-                snapshot.error = "Não foi possível consultar a sessão do Colab."
+                snapshot.error = tr("Não foi possível consultar a sessão do Colab.")
         except (OSError, subprocess.TimeoutExpired) as exc:
-            snapshot.error = f"Não foi possível consultar o Colab: {exc}"
+            snapshot.error = tr("Não foi possível consultar o Colab: {p0}", p0=exc)
         try:
             with urlopen(COMFY_URL + "system_stats", timeout=2) as response:
                 snapshot.local_ready = response.status == 200

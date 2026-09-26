@@ -1,5 +1,13 @@
 # Validação das publicações
 
+## Atualização 2.0.6 — 26/09/2026
+
+- 46 testes Python locais aprovados: catálogo, placeholders, preferência persistente e inválida, troca de idioma durante operação simulada, campos/aba/rolagem e falha ao salvar.
+- Ruff e sintaxe Python 3.11 aprovados. Testes de idioma sem interface incluídos no CI Windows/Linux; testes gráficos executados localmente.
+- Interface, confirmações e mensagens do aplicativo traduzidas. Logs técnicos externos mantêm o idioma original; o idioma do editor ComfyUI é independente.
+- A mudança de idioma não inicia comandos de VM. Nenhuma VM real foi reiniciada para testar a tradução.
+- Executáveis público e pessoal compilados e abertos em prévia isolada; a instância pessoal anterior continuou aberta. O pacote público foi separado dos dados e credenciais pessoais.
+
 ## Atualização 2.0.5 — 26/09/2026
 
 - 42 testes Python passaram no Windows, incluindo instalação limpa, isolamento de perfis, cache de modelos, imagem corrompida/incompatível, preservação de manifests e controles de interface.

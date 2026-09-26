@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+from i18n import tr
 
 
 def app_data_dir() -> Path:
@@ -20,7 +21,7 @@ def wsl_prefix() -> list[str]:
     distro = os.environ.get("EASY_COMFY_WSL_DISTRO") or config.get("distro") or "Ubuntu-24.04"
     user = os.environ.get("EASY_COMFY_WSL_USER") or config.get("user") or ""
     if not isinstance(distro, str) or not isinstance(user, str):
-        raise ValueError("Distribuição e usuário WSL devem ser texto.")
+        raise ValueError(tr("Distribuição e usuário WSL devem ser texto."))
     result = ["wsl.exe", "--distribution", distro]
     if user:
         result += ["--user", user]

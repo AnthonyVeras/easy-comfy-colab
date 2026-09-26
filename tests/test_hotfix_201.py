@@ -10,6 +10,8 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
 from main import Dashboard
+from i18n import get_language, set_language
+from services import Preferences
 
 
 class NavigationTests(unittest.TestCase):
@@ -26,6 +28,7 @@ class NavigationTests(unittest.TestCase):
         for callback in self.app.tk.call("after", "info"):
             self.app.tk.call("after", "cancel", callback)
         self.app.destroy()
+        set_language("pt-BR")
         self.storage.stop()
         self.temp.cleanup()
 
@@ -91,6 +94,64 @@ class NavigationTests(unittest.TestCase):
         self.app.snapshot.hardware = 'CPU'
         self.app._render()
         self.assertEqual(self.app.image_button.cget('state'), 'disabled')
+
+    def test_language_switch_preserves_session_forms_navigation_and_protocol(self):
+        app = self.app
+        app.show_page("Configurações")
+        app.urls.insert("1.0", "https://example.com/Modelo.safetensors")
+        app.hf_token.insert(0, "unsaved-example")
+        app.idle_entry.delete(0, "end")
+        app.idle_entry.insert(0, "27")
+        app.auth_mode = "code"
+        app.auth_url = "https://example.com/auth"
+        process = app.process = SimpleNamespace(stdin=io.BytesIO())
+        snapshot = app.snapshot
+        app.jobs = [dict(id="example", name="Modelo.safetensors", status="queued", bytes=0, total=10)]
+        app._render_downloads()
+        app.download_tree.selection_set("example")
+        app.update()
+        app.pages["Configurações"]._parent_canvas.yview_moveto(0.3)
+        before = app.pages["Configurações"]._parent_canvas.yview()[0]
+        command_count = len(app._tclCommands)
+        with patch.object(app, "_launch") as launch, patch.object(app.gateway, "run") as run:
+            app._change_language("English")
+            app.update()
+            self.assertEqual(get_language(), "en")
+            self.assertEqual(Preferences().values["language"], "en")
+            self.assertEqual(app.current_page, "Configurações")
+            self.assertEqual(app.page_title.cget("text"), "Settings")
+            self.assertEqual(app.nav["Modelos"].cget("text"), "Models")
+            self.assertEqual(app.image_button.cget("text"), "Update Drive image")
+            self.assertAlmostEqual(app.pages["Configurações"]._parent_canvas.yview()[0], before, delta=0.01)
+            self.assertEqual(app.urls.get("1.0", "end-1c"), "https://example.com/Modelo.safetensors")
+            self.assertEqual(app.hf_token.get(), "unsaved-example")
+            self.assertEqual(app.idle_entry.get(), "27")
+            self.assertEqual(app.busy, "start")
+            self.assertIs(app.process, process)
+            self.assertIs(app.snapshot, snapshot)
+            self.assertEqual(app.download_tree.selection(), ("example",))
+            self.assertEqual(app.download_tree.item("example", "values")[1], "Queued")
+            app._consume_line("Atualizando imagem do Drive: preparando cópia...")
+            self.assertEqual(app.stage, "Updating the Drive image…")
+            app.busy = None
+            app._choose_output("My PC")
+            self.assertEqual(app.store.current().output_mode, "pc")
+            app._change_language("Português (Brasil)")
+            app.update()
+            self.assertEqual(app.page_title.cget("text"), "Configurações")
+            self.assertEqual(app.download_tree.item("example", "values")[1], "Na fila")
+            self.assertEqual(app.output_choice.get(), "Meu PC")
+            self.assertEqual(app.hf_token.get(), "unsaved-example")
+            self.assertEqual(len(app._tclCommands), command_count)
+            launch.assert_not_called()
+            run.assert_not_called()
+
+    def test_language_save_failure_keeps_current_interface(self):
+        with patch.object(self.app.preferences, "save", side_effect=OSError("disk unavailable")):
+            self.app._change_language("English")
+        self.assertEqual(get_language(), "pt-BR")
+        self.assertEqual(self.app.preferences.values["language"], "pt-BR")
+        self.assertEqual(self.app.nav["Modelos"].cget("text"), "Modelos")
 
 
 if __name__ == "__main__":
