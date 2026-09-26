@@ -10,7 +10,7 @@ REPO=https://github.com/Tavris1/ComfyUI-Easy-Install.git
 REVISION=2a979fae03ac6c4adc607634b0ef8432e80ecc3e
 COMFY_REVISION=1568e6cfd04586a4b3c4e1817ea7dde09b1bf9e7
 LOG="$ROOT/install.log"
-export PIP_CACHE_DIR="$DRIVE/.cache/pip"
+export PIP_CACHE_DIR="$ROOT/pip-cache"
 
 # A versão atual de ComfyUI-GGUF reconhece Qwen Image 2.1 ao converter,
 # mas omite o identificador gravado no GGUF da lista aceita pelo loader.
@@ -39,7 +39,23 @@ else:
 PY
 }
 
-mkdir -p "$ROOT" "$INSTALL"
+ensure_test_model() {
+  # Um modelo pequeno e público permite comprovar inferência CUDA real no teste.
+  UPSCALE_MODEL="$DRIVE/models/upscale_models/RealESRGAN_x4plus.safetensors"
+  if [[ ! -s "$UPSCALE_MODEL" ]]; then
+    mkdir -p "$(dirname "$UPSCALE_MODEL")"
+    curl --fail --location --retry 3 \
+      'https://huggingface.co/Comfy-Org/Real-ESRGAN_repackaged/resolve/main/RealESRGAN_x4plus.safetensors' \
+      --output "$UPSCALE_MODEL.partial"
+    if (( $(stat -c %s "$UPSCALE_MODEL.partial") < 1000000 )); then
+      echo 'O arquivo de teste RealESRGAN está incompleto.' >&2
+      exit 1
+    fi
+    mv "$UPSCALE_MODEL.partial" "$UPSCALE_MODEL"
+  fi
+}
+
+mkdir -p "$ROOT"
 exec > >(tee -a "$LOG") 2>&1
 
 if [[ ! -d /content/drive/MyDrive ]]; then
@@ -85,6 +101,18 @@ if [[ -f "$ROOT/installed.ok" ]] && \
   exit 0
 fi
 
+# A imagem é a opção padrão. Nunca substitui um ambiente já existente na VM.
+if [[ ! -e "$INSTALL" && ! -e "$ROOT/mcp-venv" ]]; then
+  echo 'Procurando imagem de instalação compatível no Google Drive...'
+  if python3 "$ROOT/runtime_image.py" restore; then
+    ensure_test_model
+    patch_gguf_qwen21
+    exit 0
+  fi
+  echo 'Preparando instalação convencional; uma nova imagem será criada em segundo plano.'
+fi
+mkdir -p "$INSTALL"
+
 if [[ ! -d "$SOURCE/.git" ]]; then
   git clone --depth 1 --branch MAC-Linux "$REPO" "$SOURCE"
 fi
@@ -110,6 +138,15 @@ fi
 python3 -m venv --system-site-packages "$INSTALL/.venv"
 PYTHON="$INSTALL/.venv/bin/python"
 PIP=("$PYTHON" -m pip --disable-pip-version-check)
+
+# Respeita a pilha do Colab também nas dependências transitivas dos nodes.
+python3 - <<'PY' > "$ROOT/dependency-constraints.txt"
+from importlib.metadata import version
+for name in ('torch', 'torchvision', 'torchaudio'):
+    print(f'{name}=={version(name)}')
+print('onnx==1.19.1\nprotobuf==5.29.6')
+PY
+export PIP_CONSTRAINT="$ROOT/dependency-constraints.txt"
 
 # Colab já fornece um PyTorch CUDA compatível com o driver da GPU recebida.
 # O instalador desktop fixa outra versão e substituiria essa pilha a cada sessão.
@@ -151,19 +188,7 @@ if [[ ! -L "$COMFY/models" ]]; then
   ln -s "$DRIVE/models" "$COMFY/models"
 fi
 
-# Um modelo pequeno e público permite comprovar inferência CUDA real no teste.
-UPSCALE_MODEL="$DRIVE/models/upscale_models/RealESRGAN_x4plus.safetensors"
-if [[ ! -s "$UPSCALE_MODEL" ]]; then
-  mkdir -p "$(dirname "$UPSCALE_MODEL")"
-  curl --fail --location --retry 3 \
-    'https://huggingface.co/Comfy-Org/Real-ESRGAN_repackaged/resolve/main/RealESRGAN_x4plus.safetensors' \
-    --output "$UPSCALE_MODEL.partial"
-  if (( $(stat -c %s "$UPSCALE_MODEL.partial") < 1000000 )); then
-    echo 'O arquivo de teste RealESRGAN está incompleto.' >&2
-    exit 1
-  fi
-  mv "$UPSCALE_MODEL.partial" "$UPSCALE_MODEL"
-fi
+ensure_test_model
 
 # A lista de nodes vem diretamente da ramificação MAC-Linux escolhida pelo usuário.
 NODE_LIST="$ROOT/easy-install-nodes.txt"
@@ -176,6 +201,10 @@ while read -r url folder; do
   [[ -n "$url" && -n "$folder" ]] || continue
   if [[ "$folder" == comfyui-manager ]]; then
     echo 'Gerenciador legado ignorado; o ComfyUI atual usa manager_requirements.txt.'
+    continue
+  fi
+  if [[ "$folder" == ComfyUI-fish-audio-s2 ]]; then
+    echo 'FishAudioS2 não incluído: repositório original indisponível (404).'
     continue
   fi
   target="$COMFY/custom_nodes/$folder"
@@ -213,8 +242,9 @@ PY
 
 echo "Nodes do Easy Install: $(wc -l < "$NODE_LIST")"
 if [[ -s "$FAILURES" ]]; then
-  echo 'Alguns nodes exigem ajustes adicionais:'
+  echo 'Instalação incompleta; a imagem não será criada. Nodes que exigem reparo:'
   cat "$FAILURES"
+  exit 1
 fi
 echo 'Instalação remota preparada.'
 printf '%s %s\n' "$REVISION" "$COMFY_REVISION" > "$ROOT/installed.ok"

@@ -7,6 +7,7 @@ export FIXTURE="$fixture"
 mkdir -p "$fixture/app" "$fixture/bin" "$fixture/state"
 cp "$project/stop.sh" "$fixture/stop.sh"
 cp "$project/app/output_control.sh" "$fixture/app/output_control.sh"
+printf 'update_runtime_image() { return 0; }\n' > "$fixture/app/runtime_image.sh"
 cat > "$fixture/app/environment.sh" <<'SH'
 PROFILE_ID=default
 STATE="$FIXTURE/state"
@@ -28,6 +29,7 @@ SH
 cat > "$fixture/bin/ssh" <<'SH'
 #!/usr/bin/env bash
 case "$*" in
+  *'echo installed'*) echo installed ;;
   *'output_storage.py pause'*) echo 123 ;;
   *'kill -CONT 123'*) touch "$FIXTURE/resumed" ;;
   *'test ! -d /content/comfy-colab/output-pc'*) echo yes ;;

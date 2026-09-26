@@ -35,11 +35,17 @@ def main() -> None:
         return
     if not PYTHON.is_file():
         subprocess.run([sys.executable, '-m', 'venv', str(VENV)], check=True)
-    subprocess.run(
-        [str(PYTHON), '-m', 'pip', '--disable-pip-version-check', 'install',
-         'comfy-mcp==0.10.0', 'comfy-cli==1.21.0'],
-        check=True, stdout=subprocess.DEVNULL,
-    )
+    ready = subprocess.run(
+        [str(PYTHON), '-c', 'from importlib.metadata import version; '
+         'assert version("comfy-mcp")=="0.10.0"; assert version("comfy-cli")=="1.21.0"'],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20,
+    ).returncode == 0
+    if not ready:
+        subprocess.run(
+            [str(PYTHON), '-m', 'pip', '--disable-pip-version-check', 'install',
+             'comfy-mcp==0.10.0', 'comfy-cli==1.21.0'],
+            check=True, stdout=subprocess.DEVNULL, timeout=600,
+        )
     subprocess.run([str(COMFY_BIN), 'set-default', str(COMFY)], check=True)
     environment = os.environ.copy()
     environment['COMFY_BIN'] = str(COMFY_BIN)

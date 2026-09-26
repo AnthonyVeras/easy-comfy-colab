@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.0.5 — imagem de instalação no Drive e cache de modelos
+
+Esta publicação reúne as melhorias desenvolvidas nas versões pessoais 2.0.3–2.0.5.
+
+- Restauração padrão de uma imagem privada do Drive para o disco da VM, com verificação SHA-256 e compatibilidade da base Python/PyTorch.
+- Preparação da primeira imagem em segundo plano após uma instalação convencional; o pacote é criado na conta do usuário e não acompanha a distribuição.
+- Botão **Atualizar imagem do Drive**, sem reiniciar ComfyUI, e atualização antes do encerramento da VM. Falhas de salvamento mantêm a VM ligada.
+- Preservação de nodes Git, Registry e ZIP e das dependências adicionais instaladas. A imagem anterior continua guardada no Drive.
+- Cache opcional de modelos no disco da VM, seleção por workflow e pré-leitura opcional na RAM com limite e reserva de memória.
+- Tempos por etapa, timeout nas verificações HTTP, segunda tentativa de montagem do Drive e reutilização das dependências do MCP.
+- Cache pip local, restrições para preservar a pilha Torch e interrupção de instalações incompletas. FishAudioS2 fica fora da lista enquanto sua origem fixada está indisponível.
+- Testes de integridade, falha de gravação, encerramento protegido, preservação do Drive e isolamento de perfis.
+
+Na instalação de referência, o usuário reportou redução de aproximadamente 17 para 4 minutos em uma nova sessão. Esse resultado não é um benchmark universal. A primeira instalação sem imagem continua mais demorada; veja [validação](docs/VALIDATION.md).
+
 ## 2.0.2 — destino dos resultados
 
 - Escolha por conta entre outputs no Drive e no PC, aplicada no início ou no reinício apenas do ComfyUI.

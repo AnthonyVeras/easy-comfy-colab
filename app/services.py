@@ -10,7 +10,7 @@ import psutil
 from backend import app_data_dir
 from model_download import _json_request, EXTENSIONS
 
-VERSION = "2.0.2"
+VERSION = "2.0.5"
 DEFAULTS = {"parallel": 3, "idle_minutes": 0, "balance_alert": 20, "auto_open": True}
 
 
@@ -227,6 +227,49 @@ def check_workflow(path, info, models):
             "Nenhuma dependência ausente identificada. Não substitui um teste de execução.",
         )
     ]
+
+
+def workflow_cache_selection(path, models):
+    """Sugere arquivos existentes, sem adivinhar nomes ambíguos nem executar nodes."""
+    data = read_json(path, None)
+    if not isinstance(data, dict):
+        raise ValueError("Selecione um workflow JSON válido.")
+    names = set()
+
+    def strings(value):
+        if isinstance(value, str):
+            if len(value) <= 1024 and "\n" not in value and Path(value).suffix.lower() in EXTENSIONS:
+                names.add(value.replace("\\", "/"))
+        elif isinstance(value, dict):
+            for item in value.values():
+                strings(item)
+        elif isinstance(value, list):
+            for item in value:
+                strings(item)
+
+    def walk(value):
+        if isinstance(value, dict):
+            if "type" in value or "class_type" in value:
+                if value.get("mode") in (2, 4) or value.get("type") in ("Note", "MarkdownNote"):
+                    return
+                strings(value.get("widgets_values", value.get("inputs", {})))
+            for item in value.values():
+                walk(item)
+        elif isinstance(value, list):
+            for item in value:
+                walk(item)
+
+    walk(data)
+    selected, unresolved = set(), []
+    for name in sorted(names):
+        matches = [m for m in models if name in (m["name"], m["category"] + "/" + m["name"])]
+        if not matches:
+            matches = [m for m in models if Path(m["name"]).name == Path(name).name]
+        if len(matches) == 1:
+            selected.add(matches[0]["category"] + "/" + matches[0]["name"])
+        else:
+            unresolved.append(name + (" (ambíguo)" if matches else " (ausente)"))
+    return selected, unresolved
 
 
 class IdleGuard:

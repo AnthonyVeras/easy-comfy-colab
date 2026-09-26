@@ -23,6 +23,10 @@ if [[ -s "$STATE/start.pid" ]]; then
 fi
 
 source "$PROJECT/app/ssh_transport.sh"
+source "$PROJECT/app/runtime_image.sh"
+# O transporte SSH já fecha o descritor 9 no master, para não reter este lock.
+exec 9>"$STATE/runtime-image.lock"
+flock -n 9 || { echo 'Aguarde a atualização da imagem terminar antes de encerrar.' >&2; exit 1; }
 
 session_status="$("$COLAB" "${COLAB_FLAGS[@]}" status -s "$SESSION")"
 if [[ "$session_status" != *"not found"* ]]; then
@@ -30,6 +34,18 @@ if [[ "$session_status" != *"not found"* ]]; then
   [[ "$session_status" != *"Hardware: CPU"* ]] || MODE=downloads
   if ! transport_ready; then
     open_transport || { echo 'Reconexão falhou; VM mantida para preservar os outputs.' >&2; exit 1; }
+  fi
+  if [[ "$MODE" == comfy ]]; then
+    image_state="$(ssh "${ssh_options[@]}" root@colab 'if test -f /content/comfy-colab/installed.ok; then echo installed; else echo incomplete; fi')"
+    if [[ "$image_state" == installed ]]; then
+      if ! update_runtime_image; then
+        echo 'Falha ao atualizar a imagem do Drive. A VM continua ligada; corrija o erro e tente novamente.' >&2
+        exit 1
+      fi
+    elif [[ "$image_state" != incomplete ]]; then
+      echo 'Não foi possível verificar a instalação. VM mantida ligada.' >&2
+      exit 1
+    fi
   fi
   mkdir -p "$MEDIA_ROOT/output" "$LOCAL_DATA/user"
   echo 'Sincronizando resultados e workflows com o notebook (até 60 segundos)...'

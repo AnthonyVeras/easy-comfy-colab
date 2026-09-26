@@ -14,7 +14,7 @@ if [[ ! -x "$PYTHON" || ! -f "$COMFY/main.py" || ! -d "$DRIVE/models" ]]; then
   exit 1
 fi
 
-if curl --silent --fail http://127.0.0.1:8188/system_stats >/dev/null; then
+if curl --silent --fail --connect-timeout 2 --max-time 5 http://127.0.0.1:8188/system_stats >/dev/null; then
   active_output="$(cat "$ROOT/output-mode" 2>/dev/null || echo drive)"
   [[ "$active_output" == "${COMFY_OUTPUT_MODE:-drive}" ]] || { echo 'Use Reiniciar ComfyUI para aplicar o novo destino de outputs.' >&2; exit 1; }
   echo 'Servidor ComfyUI já está ativo.'
@@ -33,8 +33,9 @@ nohup "$PYTHON" main.py \
   > "$LOG" 2>&1 < /dev/null &
 echo $! > "$PIDFILE"
 
-for _ in $(seq 1 120); do
-  if curl --silent --fail http://127.0.0.1:8188/system_stats >/dev/null; then
+deadline=$((SECONDS + 240))
+while (( SECONDS < deadline )); do
+  if curl --silent --fail --connect-timeout 2 --max-time 5 http://127.0.0.1:8188/system_stats >/dev/null; then
     echo 'Servidor ComfyUI responde em 127.0.0.1:8188.'
     exit 0
   fi

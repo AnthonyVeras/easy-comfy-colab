@@ -41,6 +41,7 @@ RUNNING = 0
 MODE = "comfy"
 INVALIDATE = lambda: None
 QUEUE = lambda: None
+CACHE = None
 
 
 def restore():
@@ -196,6 +197,8 @@ async def run_download(job, url, target, token):
             persist()
             await asyncio.to_thread(download_file, job, url, target, token)
         job.update(status="complete", speed=0, eta=0)
+        if CACHE:
+            CACHE.invalidate(target)
         INVALIDATE()
     except Cancelled:
         job.update(status="cancelled", speed=0, eta=None)
@@ -307,19 +310,42 @@ def metrics():
         "queue_busy": QUEUE(),
         "downloads_busy": any(
             j["status"] in ("queued", "running", "cancelling") for j in JOBS.values()
-        ),
+        ) or bool(CACHE and CACHE.busy),
+        "model_cache": CACHE.snapshot() if CACHE else None,
         "timestamp": time.time(),
     }
 
 
-def register(routes, *, mode="comfy", invalidate=None, queue_status=None):
-    global MODE, INVALIDATE, QUEUE
+def register(routes, *, mode="comfy", invalidate=None, queue_status=None, cache=None):
+    global MODE, INVALIDATE, QUEUE, CACHE
     MODE = mode
+    CACHE = cache
     if invalidate:
         INVALIDATE = invalidate
     if queue_status:
         QUEUE = queue_status
     restore()
+
+    @routes.post("/comfy-colab/cache/{action}")
+    async def cache_action(request):
+        data = await checked_json(request)
+        if CACHE is None:
+            return web.json_response({"error": "Cache disponível em uma sessão ComfyUI de GPU."}, status=409)
+        action = request.match_info["action"]
+        try:
+            if action == "prepare":
+                result = await asyncio.to_thread(CACHE.start, data)
+            elif action == "settings":
+                result = await asyncio.to_thread(CACHE.configure, data)
+            elif action == "cancel":
+                result = CACHE.cancel()
+            elif action == "clear":
+                result = await asyncio.to_thread(CACHE.clear)
+            else:
+                return web.json_response({"error": "Ação de cache desconhecida."}, status=404)
+            return web.json_response(result)
+        except (ValueError, OSError) as exc:
+            return web.json_response({"error": str(exc)}, status=400)
 
     @routes.get("/comfy-colab/model-download/capabilities")
     async def capabilities(request):

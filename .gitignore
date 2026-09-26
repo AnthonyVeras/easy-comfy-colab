@@ -25,6 +25,9 @@ id_ed25519*
 *.ckpt
 *.pth
 *.part
+*.partial
+*.tar.gz
+/.runtime-images/
 # Build/cache, never distributed through git
 .venv*/
 venv/

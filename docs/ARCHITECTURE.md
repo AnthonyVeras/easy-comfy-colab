@@ -25,10 +25,12 @@ sequenceDiagram
     W->>C: Abrir master SSH com portas locais
     W->>C: Montar Drive via CLI
     C->>D: Autorizar e montar
-    W->>C: Instalar dependências e sincronizar alterações
+    C->>D: Procurar imagem compatível da instalação
+    W->>C: Restaurar imagem ou instalar; sincronizar alterações
     W->>C: Iniciar ComfyUI e MCP (ou serviço CPU)
     A->>C: Consultar serviços pelo túnel
     U->>A: Encerrar VM
+    C->>D: Atualizar e verificar imagem da instalação
     W->>D: Tentar sincronizar resultados/workflows para o notebook
     W->>C: Fechar SSH e liberar runtime
 ```
@@ -52,6 +54,8 @@ sequenceDiagram
 | `~/.ssh/easy_comfy_colab_ed25519` | Chave SSH gerada na instalação |
 | `~/.local/state/easy-comfy-colab/<id>` | PID, locks, logs, known_hosts e socket SSH |
 | `/content/drive/MyDrive/ComfyColab` | Dados persistentes na conta selecionada |
+| `/content/drive/MyDrive/ComfyColab/.runtime-images` | Imagens privadas verificadas e manifests |
+| `/content/comfy-colab/model-cache` | Cópias temporárias dos modelos selecionados |
 | `/content/comfy-colab` | Software e processos temporários da VM |
 
 Os caminhos WSL usam o `$HOME` do usuário configurado. Os perfis do Windows não contêm caminhos de outro computador. O perfil inicial vem desconectado; o pacote não importa dados da instalação pessoal que originou o projeto.
@@ -82,6 +86,14 @@ Compartilhar biblioteca concede edição a uma pasta e cria um atalho no destino
 As portas `18188` e `18189` escutam apenas no loopback. Não há autenticação adicional do aplicativo nesses serviços locais; processos no mesmo computador podem acessá-los. Nunca transforme os túneis em serviços públicos sem projetar autenticação e controle de acesso próprios.
 
 Custom nodes executam código Python na VM e podem acessar o Drive montado. Instalar um node envolve confiar no seu mantenedor. O MCP também oferece controle do ambiente remoto; ferramentas e clientes conectados precisam ser confiáveis.
+
+## Imagem e cache (2.0.5)
+
+`remote/runtime_image.py` copia os ambientes para uma pasta temporária, valida imports, compacta e publica um arquivo por hash no Drive. O manifesto só muda depois da verificação; falhas preservam a imagem anterior. A extração valida caminhos, tipos e tamanhos, recusa links arbitrários e só publica os diretórios finais após validar a base e os ambientes. Não segue os links dos dados de usuário para incluí-los na imagem.
+
+`app/runtime_image.sh` é compartilhado pelo botão manual e `stop.sh`. O lock local usa o descritor 9, fechado no master SSH para não permanecer preso quando uma operação falha. Outro lock na VM impede builders simultâneos. Falhas de imagem ou cópia final impedem a chamada de encerramento do Colab.
+
+`model_cache.py` mantém a seleção e preferências no Drive, copia até dois arquivos em paralelo para o disco da VM e integra o resolvedor de caminhos do ComfyUI. Pré-leitura opcional aquece o cache de arquivos do Linux, sem fixar RAM nem carregar VRAM. O modo CPU de downloads não instancia o cache. Veja [imagem](RUNTIME_IMAGE.md) e [cache](MODEL_CACHE.md).
 
 ## Destino de outputs (2.0.2)
 

@@ -307,9 +307,21 @@ class SessionWindow(ctk.CTk):
             ("Criando sessão", "Alocando a GPU no Colab…"),
             ("Montando Google Drive", "Montando o Google Drive…"),
             ("Instalando ComfyUI", "Preparando o ComfyUI…"),
+            ("Procurando imagem", "Verificando a imagem no Google Drive…"),
+            ("Restaurando imagem", "Copiando a imagem do Drive para a VM…"),
+            ("Extraindo...", "Extraindo e verificando a instalação…"),
+            ("Preparando instalação convencional", "Instalando dependências: imagem compatível indisponível…"),
             ("Sincronizando custom nodes", "Sincronizando os nodes…"),
             ("Enviando entradas", "Enviando as entradas…"),
             ("Iniciando servidor", "Iniciando o servidor…"),
+            ("Preparando Comfy MCP", "Preparando a integração Comfy MCP…"),
+            ("Atualizando imagem do Drive", "Atualizando a imagem do Drive…"),
+            ("Preparando imagem em uma cópia", "Copiando a instalação para preparar a imagem…"),
+            ("Validando dependências", "Verificando a instalação copiada…"),
+            ("Compactando imagem", "Compactando a imagem da instalação…"),
+            ("Enviando imagem ao Drive", "Salvando a nova imagem no Drive…"),
+            ("Verificando imagem no Drive", "Verificando a integridade da nova imagem…"),
+            ("Imagem pronta no Drive", "Imagem do Drive atualizada e verificada"),
             ("Abrindo túnel", "Abrindo o túnel SSH…"),
             ("Teste concluído", "Inferência na GPU verificada"),
             ("Copiando resultados", "Copiando os resultados…"),
@@ -353,6 +365,7 @@ class SessionWindow(ctk.CTk):
             "connect": "Conectando conta…",
             "restart": "Reiniciando o ComfyUI…",
             "drive": "Operação no Google Drive…",
+            "image": "Atualizando a imagem do Drive…",
         }[operation]
         self._append_log(f"── {self.stage} ──")
         self._render()
@@ -400,7 +413,9 @@ class SessionWindow(ctk.CTk):
             return
 
         if return_code != 0:
-            self.stage = "Falha na operação. Veja a atividade e tente novamente."
+            self.exit_after_stop = False
+            self.stage = ("A VM foi mantida ligada. Veja o erro na atividade e tente novamente."
+                          if operation in {"stop", "image"} else "Falha na operação. Veja a atividade e tente novamente.")
             self._append_log(error or f"Operação terminou com código {return_code}.")
             self._render()
             self._refresh_async()
@@ -438,6 +453,9 @@ class SessionWindow(ctk.CTk):
                 return
         elif operation == "restart":
             self.stage = "ComfyUI reiniciado. Modelos removidos da memória da GPU."
+            self._append_log(self.stage)
+        elif operation == "image":
+            self.stage = "Imagem do Drive atualizada. Será usada na próxima VM compatível."
             self._append_log(self.stage)
         self._render()
         self._refresh_async()
@@ -514,6 +532,13 @@ class SessionWindow(ctk.CTk):
             self.cancel_requested = False
             self.stage = "O cancelamento não foi confirmado. Tente cancelar novamente."
             self._render()
+
+    def _update_runtime_image(self) -> None:
+        if (self.busy or self.setup_error or not self.snapshot.session_exists
+                or not self.snapshot.local_ready or self.snapshot.hardware == "CPU"):
+            return
+        self._launch("image", self.store.current(),
+                     ("bash", f"{self.gateway.linux_root()}/app/runtime_image.sh"))
 
     def _restart_comfy(self) -> None:
         if (
@@ -656,7 +681,7 @@ class SessionWindow(ctk.CTk):
                 ],
             )
             return
-        if self.busy in {"restart", "drive"}:
+        if self.busy in {"restart", "drive", "image"}:
             self.stage = "Aguarde a operação terminar antes de fechar o aplicativo."
             self._render()
             return
@@ -677,7 +702,7 @@ class SessionWindow(ctk.CTk):
             ConfirmDialog(
                 self,
                 "A VM ainda está ligada",
-                "Ela pode continuar usando unidades computacionais. No modo PC, fechar o app interrompe as cópias automáticas; arquivos ainda só na VM podem se perder quando ela acabar.",
+                "Encerrar VM e sair atualiza a imagem do Drive e salva os outputs antes de desligar. Sair com VM ativa mantém o consumo de créditos e interrompe as cópias automáticas para o PC.",
                 [
                     ("Voltar", lambda: None, "secondary"),
                     ("Sair com VM ativa", self.destroy, "secondary"),

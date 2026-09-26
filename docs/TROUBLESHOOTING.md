@@ -1,5 +1,15 @@
 # Solução de problemas
 
+## A imagem do Drive não atualizou e a VM continua ligada
+
+Abra a atividade na aba Sessão. Falta de espaço, Drive desconectado, instalação em andamento ou link de node não suportado impedem substituir a imagem anterior. Corrija a causa e tente **Atualizar imagem do Drive** ou **Encerrar VM** novamente. Enquanto isso, a GPU continua alocada. Não desligue diretamente no Colab se precisar preservar alterações ainda não salvas.
+
+Uma imagem usa vários GiB, além dos modelos. As imagens anteriores não são excluídas automaticamente. O arquivo `runtime-image-build-result.json` na VM informa o resultado do builder. Consulte [imagem e recuperação](RUNTIME_IMAGE.md).
+
+## A primeira sessão continua demorando
+
+O pacote Windows não inclui uma imagem remota pronta. Na primeira sessão, a conta precisa instalar o ambiente e preparar sua própria imagem. Sessões seguintes restauram quando Python/PyTorch e a base do Colab são compatíveis. O log distingue restauração de instalação convencional. O cache de modelos é outro recurso e não substitui o pacote da instalação.
+
 ## O aplicativo pede Setup.ps1
 
 Execute a preparação na raiz do projeto. O `.exe` não substitui WSL, o ambiente do CLI ou a chave SSH. Confira `wsl --list --verbose` e o nome passado em `Setup.ps1 -Distro ...`. O usuário Linux pode ser informado com `-WslUser`.

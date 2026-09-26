@@ -13,6 +13,11 @@ GPU="${COMFY_GPU:-A100}"
 OUTPUT_MODE="${COMFY_OUTPUT_MODE:-drive}"
 [[ "$OUTPUT_MODE" == pc || "$OUTPUT_MODE" == drive ]] || { echo "Destino de outputs inválido." >&2; exit 1; }
 SECONDS=0
+PHASE_START=0
+phase_done() {
+  echo "Etapa concluída: $1 — $((SECONDS - PHASE_START))s (total ${SECONDS}s)."
+  PHASE_START=$SECONDS
+}
 MODE=comfy
 [[ "$GPU" != CPU ]] || MODE=downloads
 [[ "$GPU" =~ ^(G4|A100|L4|T4|CPU)$ ]] || { echo "Hardware inválido." >&2; exit 1; }
@@ -106,13 +111,16 @@ fi
 
 echo 'Abrindo conexão privada com a VM...'
 open_transport
+phase_done 'Alocação e conexão SSH'
 
 for drive_attempt in 1 2; do
   if ssh "${ssh_options[@]}" root@colab 'test -d /content/drive/MyDrive'; then
     break
   fi
   echo "Montando Google Drive (tentativa $drive_attempt/2)..."
-  python3 "$PROJECT/mount_drive.py" "$COLAB" "$SESSION"
+  if ! python3 "$PROJECT/mount_drive.py" "$COLAB" "$SESSION"; then
+    echo 'A montagem não foi concluída; verificando antes de tentar novamente.' >&2
+  fi
   if ssh "${ssh_options[@]}" root@colab 'test -d /content/drive/MyDrive'; then
     break
   fi
@@ -125,6 +133,7 @@ if ! ssh "${ssh_options[@]}" root@colab 'test -d /content/drive/MyDrive'; then
   echo 'Google Drive indisponível após duas tentativas.' >&2
   exit 1
 fi
+phase_done 'Montagem do Google Drive'
 
 # Conexão reaproveitada e sincronização incremental: nunca apaga arquivos remotos.
 command -v rsync >/dev/null || { echo 'Instale rsync no Ubuntu WSL.' >&2; exit 1; }
@@ -145,19 +154,26 @@ if [[ "$MODE" == downloads ]]; then
   copy_to_vm "$PROJECT/remote/download_server.py" root@colab:/content/comfy-colab/download_server.py
   ssh "${ssh_options[@]}" root@colab 'if ! curl -sf http://127.0.0.1:8188/system_stats >/dev/null; then nohup python3 /content/comfy-colab/download_server.py >/content/comfy-colab/downloads.log 2>&1 </dev/null & echo $! >/content/comfy-colab/downloads.pid; fi'
 else
+  ssh "${ssh_options[@]}" root@colab 'mkdir -p /content/comfy-colab'
+  for helper in install.sh runtime_image.py mcp_http.py; do
+    copy_to_vm "$PROJECT/remote/$helper" "root@colab:/content/comfy-colab/$helper"
+  done
   echo 'Instalando ComfyUI-Easy-Install e seus nodes no Colab...'
-  ssh "${ssh_options[@]}" root@colab 'bash -s' < "$PROJECT/remote/install.sh"
+  ssh "${ssh_options[@]}" root@colab 'bash /content/comfy-colab/install.sh'
+  phase_done 'Instalação ou restauração da imagem'
   echo 'Sincronizando custom nodes locais...'
   rsync -rtc --exclude __pycache__ --exclude .git -e "$STATE/ssh-wrapper.sh" "$PROJECT/custom_nodes/" root@colab:/content/comfy-colab/ComfyUI-Easy-Install/ComfyUI/custom_nodes/
   echo 'Enviando entradas e workflows alterados...'
   sync_dir "$MEDIA_ROOT/input" /content/drive/MyDrive/ComfyColab/input
   sync_dir "$LOCAL_DATA/user" /content/drive/MyDrive/ComfyColab/user
   copy_to_vm "$PROJECT/remote/output_storage.py" root@colab:/content/comfy-colab/output_storage.py
+  phase_done 'Sincronização de nodes, entradas e workflows'
   echo 'Iniciando servidor ComfyUI...'
   ssh "${ssh_options[@]}" root@colab "COMFY_OUTPUT_MODE=$OUTPUT_MODE bash -s" < "$PROJECT/remote/run.sh"
+  phase_done 'Servidor ComfyUI'
   echo 'Preparando Comfy MCP oficial na VM...'
-  copy_to_vm "$PROJECT/remote/mcp_http.py" root@colab:/content/comfy-colab/mcp_http.py
   ssh "${ssh_options[@]}" root@colab 'python3 /content/comfy-colab/mcp_http.py'
+  phase_done 'Comfy MCP'
 fi
 
 echo 'Verificando os serviços pela conexão compartilhada...'
@@ -172,7 +188,12 @@ for _ in $(seq 1 60); do
         python3 "$PROJECT/smoke_test.py"
         printf '%s' "$revision" | ssh "${ssh_options[@]}" root@colab 'cat > /content/comfy-colab/smoke.ok'
       fi
+      # Baixa prioridade; não bloqueia a abertura nem altera o ambiente em uso.
+      if ! ssh "${ssh_options[@]}" root@colab 'nohup nice -n 19 ionice -c 3 python3 /content/comfy-colab/runtime_image.py build --if-missing >/content/comfy-colab/runtime-image-build.log 2>&1 </dev/null &'; then
+        echo 'Aviso: não foi possível iniciar a preparação da imagem. O ComfyUI continua disponível.' >&2
+      fi
     fi
+    phase_done 'Verificação final'
     echo "Inicialização concluída em ${SECONDS}s (modo $MODE)."
     if [[ "$MODE" == comfy ]]; then
       echo 'ComfyUI pronto em http://127.0.0.1:18188/'

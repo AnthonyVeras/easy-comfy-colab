@@ -27,7 +27,7 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
   if [[ "${1:-sync}" == restart ]]; then
     [[ "${COMFY_OUTPUT_MODE:-drive}" == pc || "${COMFY_OUTPUT_MODE:-drive}" == drive ]] || exit 1
     scp "${ssh_options[@]}" "$PROJECT/remote/output_storage.py" "$PROJECT/remote/restart.py" root@colab:/content/comfy-colab/
-    scp "${ssh_options[@]}" "$PROJECT/custom_nodes/comfy_colab_remote_download/service.py" root@colab:/content/comfy-colab/ComfyUI-Easy-Install/ComfyUI/custom_nodes/comfy_colab_remote_download/service.py
+    scp "${ssh_options[@]}" "$PROJECT/custom_nodes/comfy_colab_remote_download/"{__init__,service,model_cache}.py root@colab:/content/comfy-colab/ComfyUI-Easy-Install/ComfyUI/custom_nodes/comfy_colab_remote_download/
     exec ssh "${ssh_options[@]}" root@colab "python3 /content/comfy-colab/restart.py ${COMFY_OUTPUT_MODE:-drive}"
   fi
   # A successful idle check avoids copying a video/image still being written.

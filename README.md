@@ -19,16 +19,18 @@ Easy Comfy Colab é um aplicativo Windows para iniciar e gerenciar o **ComfyUI e
 
 A instalação remota aproveita o [ComfyUI-Easy-Install](https://github.com/Tavris1/ComfyUI-Easy-Install). O acesso à VM usa o [Colab CLI oficial](https://github.com/googlecolab/google-colab-cli), executado dentro do WSL2, porque o CLI não oferece suporte nativo a Windows.
 
-> **Primeira versão pública, experimental.** O projeto nasceu de uma instalação pessoal e recebeu isolamento de credenciais, preparação do ambiente e caminhos configuráveis para distribuição. G4, transferência real entre duas contas e instalação completa em outros computadores ainda precisam de validação pela comunidade. Consulte a [matriz de validação](docs/VALIDATION.md).
+> **Versão 2.0.5, experimental.** A edição pública mantém isolamento de credenciais e caminhos configuráveis. Restauração de imagem foi usada na instalação de referência; instalação completa em outros computadores e transferência real entre duas contas ainda precisam de validação pela comunidade. Consulte a [matriz de validação](docs/VALIDATION.md).
 
 ## O que ele faz
 
 | Área | Recursos |
 | --- | --- |
 | Sessão | Iniciar/encerrar VM, reconectar, abrir ComfyUI e reiniciar apenas o servidor |
+| Inicialização | Restaurar instalação pronta do Drive, atualizar a imagem manualmente ou antes de desligar |
 | Resultados | Escolher Drive ou PC; cópia automática e verificação antes de desligar no modo PC |
 | Hardware | Seleção de G4, A100, L4, T4 ou CPU para downloads; leitura da GPU efetivamente recebida |
 | Modelos | URLs Hugging Face/Civitai, categorias, fila, 1–6 downloads paralelos, cancelamento e retomada |
+| Carregamento | Cache no disco da VM, seleção por workflow e pré-leitura opcional na RAM |
 | Contas e Drive | Perfis separados, cópia de pasta entre contas e biblioteca de modelos compartilhada |
 | Monitor | CPU/RAM do notebook e VM, memória do aplicativo, GPU/VRAM, temperatura e disco temporário |
 | Workflows | Inspeção de JSON para apontar modelos e custom nodes ausentes, incluindo subgrafos |
@@ -128,11 +130,19 @@ O aplicativo é distribuído **sem contas, tokens, chaves privadas, modelos ou c
 1. Selecione a conta no topo e escolha G4, A100, L4 ou T4 na aba **Sessão**.
 2. Clique **Iniciar sessão**. A atividade mostra alocação, montagem do Drive, instalação e início dos serviços.
 3. Clique **Abrir ComfyUI** ou use `http://127.0.0.1:18188/`.
-4. Ao terminar, clique **Encerrar VM** para liberar os recursos.
+4. Ao terminar, clique **Encerrar VM**. O app atualiza e verifica a imagem, salva os outputs e então libera os recursos. Se o salvamento falhar, mantém a VM ligada e informa o erro.
 
 **Reiniciar ComfyUI** reinicia só o servidor e libera os modelos da memória, preservando a VM. **Liberar VRAM** descarrega os modelos com a fila vazia. **Reconectar** tenta recuperar o acesso a uma sessão existente.
 
 Fechar o navegador não encerra a VM. Ao fechar o aplicativo com uma sessão ativa, escolha se deseja encerrá-la ou mantê-la. Uma sessão mantida pode continuar consumindo créditos. A automação de inatividade exige que o aplicativo permaneça aberto.
+
+### Inicialização por imagem do Drive (2.0.5)
+
+A primeira VM instala o ambiente e prepara uma **imagem privada** em `Meu Drive/ComfyColab/.runtime-images/`. Nas próximas VMs compatíveis, o app copia esse arquivo para o disco local, verifica sua integridade, extrai e usa a instalação pronta. O software roda no disco da VM. Não é necessário Docker.
+
+Na aba **Sessão**, **Atualizar imagem do Drive** captura novos nodes e dependências sem reiniciar o servidor. O encerramento da VM faz a mesma atualização automaticamente. A gravação pode acrescentar alguns minutos ao encerramento, durante os quais a GPU continua alocada. A imagem anterior só deixa de ser selecionada depois de a nova ser verificada; arquivos de imagens antigas não são apagados automaticamente.
+
+**O ZIP público não contém uma imagem pré-configurada nem modelos.** Cada usuário gera sua própria imagem. Mudanças na base Python/PyTorch do Colab podem exigir uma instalação completa. Na instalação de referência, o usuário reportou **4 minutos**, ante aproximadamente 17 minutos; não há garantia desse tempo em outras sessões. Saiba mais em [imagem e recuperação](docs/RUNTIME_IMAGE.md).
 
 ### Salvar resultados no PC ou no Drive
 
@@ -179,6 +189,12 @@ Os links acima mostram o formato; não são modelos reais. No Hugging Face, link
 
 Para baixar sem instalar/iniciar ComfyUI, selecione **CPU · Downloads** antes de iniciar. Depois encerre essa VM e inicie outra com GPU. O modo CPU permanece sujeito aos limites do Colab.
 
+### Cache de modelos e pré-leitura na RAM
+
+Em **Modelos → Carregamento rápido**, selecione arquivos na biblioteca com Ctrl ou use **Selecionar por workflow**, depois clique **Preparar selecionados**. Até dois arquivos são copiados em paralelo do Drive para o disco temporário da VM. Os originais continuam no Drive.
+
+**Preparar antecipadamente na RAM** é opcional e vem desligado. Faz uma pré-leitura dos arquivos, respeitando o limite escolhido e uma reserva de memória. Usa o cache do Linux, que pode descartar páginas; não fixa os pesos na RAM nem os carrega antecipadamente na VRAM. A primeira cópia e a primeira geração continuam tendo custo. Os detalhes estão em [cache de modelos](docs/MODEL_CACHE.md).
+
 ### Trocar de conta ou copiar arquivos
 
 Encerre a VM atual, abra **Contas e Drive** e adicione a outra conta. Os perfis têm autorizações separadas.
@@ -205,7 +221,8 @@ Em **Configurações**, ative um limite de inatividade se quiser. Ele vem desati
 | Google Drive: `ComfyColab/input`, `output`, `user` | Entradas, workflows, configurações e outputs no modo Drive | Sim |
 | VM: `/content/comfy-colab/output-pc` | Outputs do modo PC antes de serem copiados | Não |
 | Notebook: `Comfy Colab Results/input`, `output` na pasta do usuário | Entradas locais e resultados copiados | Sim |
-| Google Drive: `ComfyColab/.cache/pip` | Cache de pacotes | Sim, ocupa espaço no Drive |
+| Google Drive: `ComfyColab/.runtime-images` | Imagens verificadas de código, nodes e dependências | Sim, ocupa espaço no Drive |
+| VM: `model-cache`, `pip-cache` | Cópias e caches temporários | Não; modelos originais continuam no Drive |
 | VM: `/content/comfy-colab` | Instalação, ambiente Python, processos e logs temporários | Não |
 | Notebook: `input`, `output`, `user`, `accounts` | Arquivos locais e cópias sincronizadas | Sim |
 | Windows: `%LOCALAPPDATA%/EasyComfyColab` | Perfis, preferências, histórico e tokens protegidos | Sim |

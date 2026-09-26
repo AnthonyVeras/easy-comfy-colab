@@ -17,6 +17,7 @@ from services import (
     IdleGuard,
     local_metrics,
     check_workflow,
+    workflow_cache_selection,
     size,
     duration,
 )
@@ -54,6 +55,9 @@ class Dashboard(Shell, SessionWindow):
         self.low_alerted = False
         self.output_sync_pending = False
         self.had_pc_outputs = False
+        self.cache_state = None
+        self.cache_profile = None
+        self.cache_pending = False
         super().__init__()
         self.title("Easy Comfy Colab — " + VERSION)
         self.after(500, self._tick)
@@ -150,6 +154,9 @@ class Dashboard(Shell, SessionWindow):
             self.output_sync_label.configure(text="")
             self.jobs = []
             self.models = []
+            self.cache_state = None
+            self.cache_profile = None
+            self._render_cache()
             self.guard.since = None
             self._dismiss_idle()
             self._render_downloads()
@@ -247,6 +254,10 @@ class Dashboard(Shell, SessionWindow):
         )
         self.free_button.configure(
             state="normal" if ready and available and not cpu else "disabled"
+        )
+        self.image_button.configure(
+            text="Atualizando imagem…" if self.busy == "image" else "Atualizar imagem do Drive",
+            state="normal" if ready and available and not cpu else "disabled",
         )
         self.reconnect_button.configure(
             state="normal"
@@ -418,6 +429,8 @@ class Dashboard(Shell, SessionWindow):
         if profile != self.store.selected:
             return
         self.remote_metrics = remote
+        self.cache_state = (remote or {}).get("model_cache")
+        self._render_cache()
         if (remote or {}).get("output_mode") == "pc":
             self.had_pc_outputs = True
         if jobs is not None:
@@ -739,13 +752,131 @@ class Dashboard(Shell, SessionWindow):
 
     def _render_library(self):
         query = self.search.get().strip().casefold()
+        selected = self.library_tree.selection()
         self.library_tree.delete(*self.library_tree.get_children())
         for m in self.models:
             if query not in (m["name"] + " " + m["category"]).casefold():
                 continue
             self.library_tree.insert(
-                "", "end", values=(m["name"], m["category"], size(m["bytes"]))
+                "", "end", iid=m["category"] + "/" + m["name"],
+                values=(m["name"], m["category"], size(m["bytes"]))
             )
+        self.library_tree.selection_set([v for v in selected if self.library_tree.exists(v)])
+
+    def _cache_options(self):
+        return dict(enabled=bool(self.cache_enabled.get()), warm_ram=bool(self.cache_warm.get()),
+                    ram_gib=int(self.cache_limit.get().split()[0]))
+
+    def _cache_action(self, action, payload=None):
+        if self.offline or not self.cache_state or self.busy or self.cache_pending:
+            self.notice("Conecte a versão atualizada do ComfyUI para preparar os modelos.")
+            return
+        profile = self.store.selected
+        self.cache_pending = True
+        self._render_cache()
+
+        def work():
+            try:
+                return _json_request("comfy-colab/cache/" + action, payload or {}), ""
+            except Exception as exc:
+                return None, str(exc)
+
+        def done(result):
+            self.cache_pending = False
+            if profile != self.store.selected:
+                return
+            state, error = result
+            if state:
+                self.cache_state = state
+            self.cache_profile = None
+            self._render_cache()
+            self.notice(error or {"prepare": "Preparação iniciada na VM. Acompanhe abaixo; pode fechar o app.",
+                                  "settings": "Preferências do cache salvas neste Drive.",
+                                  "clear": "Cache temporário removido. Modelos do Drive preservados.",
+                                  "cancel": "Cancelamento solicitado. Cópias completas serão preservadas."}[action], bool(error))
+
+        self._async(work, done)
+
+    def _cache_settings(self, _=None):
+        self._cache_action("settings", self._cache_options())
+
+    def _prepare_cache(self):
+        selected = list(self.library_tree.selection())
+        if not selected:
+            self.notice("Selecione os modelos na biblioteca com Ctrl ou use Selecionar por workflow.")
+            return
+        if not self.cache_enabled.get():
+            self.notice("Ative Usar cache da VM antes de preparar os modelos.")
+            return
+        self._cache_action("prepare", dict(self._cache_options(), models=selected))
+
+    def _select_cache_workflow(self):
+        if not self.snapshot.local_ready:
+            self.notice("Conecte a VM para consultar os modelos do workflow.")
+            return
+        path = filedialog.askopenfilename(title="Selecionar modelos do workflow", filetypes=[("Workflow ComfyUI", "*.json")])
+        if not path:
+            return
+        profile = self.store.selected
+
+        def work():
+            models = _json_request("comfy-colab/models")["models"]
+            return models, workflow_cache_selection(path, models)
+
+        def done(result):
+            if profile != self.store.selected:
+                return
+            self.models, (selected, unresolved) = result
+            self.search.delete(0, "end")
+            self._render_library()
+            self.library_tree.selection_set(sorted(selected))
+            if selected:
+                self.library_tree.see(sorted(selected)[0])
+            self.notice(f"{len(selected)} modelos selecionados. Confira a lista e clique em Preparar selecionados."
+                        + (" Não selecionados: " + "; ".join(unresolved) if unresolved else ""))
+
+        self._async(work, done)
+
+    def _render_cache(self):
+        if not hasattr(self, "cache_hint"):
+            return
+        state = self.cache_state
+        available = state is not None and not self.offline and not self.busy and not self.cache_pending
+        busy = bool(state and state.get("busy"))
+        self.cache_enabled.configure(state="normal" if available else "disabled")
+        for widget in (self.cache_warm, self.cache_limit, self.cache_prepare, self.cache_clear):
+            widget.configure(state="normal" if available and not busy else "disabled")
+        self.cache_cancel.configure(state="normal" if available and busy else "disabled")
+        if not state:
+            self.cache_tree.delete(*self.cache_tree.get_children())
+            self._cache_items_signature = None
+            self.cache_hint.configure(text="Conecte o ComfyUI atualizado para usar o cache. Na sessão antiga, use Reiniciar ComfyUI quando a fila estiver vazia.")
+            return
+        if self.cache_profile != self.store.selected:
+            settings = state["settings"]
+            for widget, key in ((self.cache_enabled, "enabled"), (self.cache_warm, "warm_ram")):
+                widget.select() if settings[key] else widget.deselect()
+            self.cache_limit.set(str(settings["ram_gib"]) + " GiB")
+            self.cache_profile = self.store.selected
+        labels = dict(idle="Aguardando seleção", queued="Na fila", copying="Copiando para a VM",
+                      warming="Preparando RAM", waiting="Aguardando a geração terminar",
+                      cached="Cache pronto", warm="Pré-leitura concluída", complete="Preparação concluída",
+                      error="Falha", cancelled="Cancelado")
+        items = state.get("items", [])
+        signature = json.dumps(items, sort_keys=True)
+        if getattr(self, "_cache_items_signature", None) != signature:
+            view = self.cache_tree.yview()
+            self.cache_tree.delete(*self.cache_tree.get_children())
+            for item in items:
+                detail = item.get("error") or item.get("note") or f"{size(item['bytes'])} / {size(item['total'])}"
+                if item["status"] == "warming":
+                    detail = f"{size(item.get('warm_bytes', 0))} / {size(item['total'])} lidos"
+                self.cache_tree.insert("", "end", values=(item["path"], labels.get(item["status"], item["status"]), detail))
+            self.cache_tree.yview_moveto(view[0] if view else 0)
+            self._cache_items_signature = signature
+        self.cache_hint.configure(text=(state.get("error") or labels.get(state["status"], state["status"]))
+                                  + f" · {len(items)} arquivos · {state.get('seconds', 0):.1f}s"
+                                  + ("\nÚltimo modelo lido pelo cache: " + state["last_loaded"] if state.get("last_loaded") else ""))
 
     def _save_credentials(self):
         try:
@@ -915,6 +1046,7 @@ class Dashboard(Shell, SessionWindow):
             "connect": "Conectar",
             "restart": "Reiniciar",
             "drive": "Google Drive",
+            "image": "Atualizar imagem",
             "session": "Sessão observada",
         }
         for h in reversed(self.history.rows):

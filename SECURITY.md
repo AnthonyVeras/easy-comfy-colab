@@ -14,6 +14,8 @@ Tokens OAuth do CLI/Drive e a chave SSH vivem no usuário Linux, com permissões
 
 Logs e diagnósticos podem conter e-mail, caminhos, identificadores de sessão e nomes de arquivos. Revise antes de compartilhá-los. O aplicativo não transmite diagnósticos automaticamente aos mantenedores.
 
+Imagens de instalação em `ComfyColab/.runtime-images` são privadas e não devem ser anexadas a issues/releases. O builder exclui dados do usuário e nomes conhecidos de arquivos de credenciais, mas isso não detecta segredos arbitrariamente embutidos por nodes. O pacote público contém apenas código, recursos e o aplicativo Windows compilado; nunca contém essas imagens remotas.
+
 ## Portas e código de terceiros
 
 ComfyUI/MCP/downloads são expostos somente em loopback através de SSH. Não existe autenticação adicional entre processos locais e essas portas. Não encaminhe `18188`/`18189` para a internet, nem ligue serviços em `0.0.0.0` sem adicionar controles apropriados.

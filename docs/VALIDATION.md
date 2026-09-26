@@ -1,4 +1,17 @@
-# Validação da primeira publicação
+# Validação das publicações
+
+## Atualização 2.0.5 — 26/09/2026
+
+- 42 testes Python passaram no Windows, incluindo instalação limpa, isolamento de perfis, cache de modelos, imagem corrompida/incompatível, preservação de manifests e controles de interface.
+- Ruff aprovado. Os novos testes de imagem/cache foram incluídos no CI Windows/Linux com Python 3.11.
+- Quatro testes Bash simulados passaram no WSL: SSH compartilhado, cancelamento, cópia de outputs e imagem antes do encerramento. Sintaxe Bash/PowerShell aprovada.
+- Executável Windows compilado e aberto em modo de prévia, sem autenticação ou conexão com VM.
+- Política da árvore pública aprovada para 76 arquivos. Gitleaks 8.30.1 sem achados nos fontes, histórico inspecionado e arquivos do build; marcadores pessoais também verificados nos binários e no código Python empacotado, sem achados.
+- A publicação não aloca, reinicia ou encerra VMs e não modifica a instalação pessoal.
+
+Na instalação de referência, antes desta publicação, a restauração isolada do pacote levou aproximadamente 41 segundos com o Drive já aquecido. O usuário depois reportou inicialização completa de uma nova sessão em quatro minutos, frente a aproximadamente 17 minutos anteriormente. Também foi concluída uma atualização real da imagem com verificação de integridade, sem reiniciar o servidor. São evidências da instalação de referência; não são benchmarks de outras máquinas nem validação de uma conta nova na edição comunitária.
+
+A edição pública usa configuração dinâmica e perfis inicialmente desconectados. Não importa contas, imagem pronta, modelos, logs ou workflows da instalação de referência. A distribuição do zero em outro computador e cópia real entre contas continuam pendentes de validação externa.
 
 ## Atualização 2.0.2
 

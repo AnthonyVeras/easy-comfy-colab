@@ -69,6 +69,29 @@ class NavigationTests(unittest.TestCase):
         self.assertEqual(self.app.current_page, "Modelos")
         self.assertFalse(self.app.auth_panel.winfo_ismapped())
 
+    def test_image_button_starts_only_manual_update_and_blocks_close_while_busy(self):
+        self.app.busy = None
+        self.app.setup_error = ''
+        self.app.snapshot.session_exists = True
+        self.app.snapshot.local_ready = True
+        self.app.snapshot.hardware = 'L4'
+        with patch.object(self.app, '_launch') as launch, patch.object(self.app.gateway, 'linux_root', return_value='/project'):
+            self.app._render()
+            self.assertEqual(self.app.image_button.cget('state'), 'normal')
+            self.app.image_button.invoke()
+            self.assertEqual(launch.call_args.args[0], 'image')
+            self.assertEqual(launch.call_args.args[2], ('bash', '/project/app/runtime_image.sh'))
+        self.app.busy = 'image'
+        self.app._render()
+        self.assertEqual(self.app.stop_button.cget('state'), 'disabled')
+        with patch.object(self.app, 'destroy') as destroy:
+            self.app._on_close()
+            destroy.assert_not_called()
+        self.app.busy = None
+        self.app.snapshot.hardware = 'CPU'
+        self.app._render()
+        self.assertEqual(self.app.image_button.cget('state'), 'disabled')
+
 
 if __name__ == "__main__":
     unittest.main()

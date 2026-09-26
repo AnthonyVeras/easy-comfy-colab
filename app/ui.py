@@ -333,6 +333,11 @@ class Shell:
             authrow, "Concluir conexão", self._submit_auth
         )
         self.auth_submit_button.pack(side="left")
+        image_section = self.section(parent, "Imagem de instalação no Drive",
+            "Atualizada automaticamente antes de encerrar a VM. Salva os nodes e dependências atuais; "
+            "os modelos já ficam nas pastas do Drive. A operação pode levar alguns minutos e mantém a GPU ligada.")
+        self.image_button = self.button(image_section, "Atualizar imagem do Drive", self._update_runtime_image, width=220)
+        self.image_button.pack(anchor="w")
         metrics = self.section(parent, "Créditos e sessão")
         row = self.row(metrics)
         self.metric_values = {}
@@ -451,9 +456,34 @@ class Shell:
         self.library_tree = self.tree(
             library, ["Modelo", "Categoria", "Tamanho"], [510, 180, 110], height=9
         )
+        self.library_tree.configure(selectmode="extended")
+        self.button(library, "Selecionar por workflow", self._select_cache_workflow, width=210).pack(anchor="w")
         self.library_hint = self.label(
             library, "Atualize com a sessão conectada.", muted=True
         )
+        cache = self.section(parent, "Carregamento rápido",
+                             "Selecione modelos na biblioteca com Ctrl ou pelo JSON do workflow. As cópias ficam na VM; os originais permanecem no Drive.")
+        self.cache_enabled = ctk.CTkSwitch(cache, text="Usar cache da VM", command=self._cache_settings)
+        self.cache_enabled.pack(anchor="w", pady=(0, 12))
+        self.cache_warm = ctk.CTkSwitch(cache, text="Preparar antecipadamente na RAM", command=self._cache_settings)
+        self.cache_warm.pack(anchor="w", pady=(0, 12))
+        row = self.row(cache)
+        self.cache_limit = self.choice(row, values=[f"{n} GiB" for n in (8, 16, 32, 64, 96, 128)],
+                                       width=140, command=self._cache_settings)
+        self.cache_limit.set("32 GiB")
+        self.cache_limit.pack(side="left", padx=(0, 12))
+        ctk.CTkLabel(row, text="Limite de pré-leitura · reserva automática de RAM", font=font(12), text_color=COLORS["muted"]).pack(side="left")
+        row = self.row(cache)
+        self.cache_prepare = self.button(row, "Preparar selecionados", self._prepare_cache, True, width=200)
+        self.cache_prepare.pack(side="left", padx=(0, 10))
+        self.cache_cancel = self.button(row, "Cancelar preparação", lambda: self._cache_action("cancel"), width=190)
+        self.cache_cancel.pack(side="left")
+        self.cache_clear = self.button(row, "Limpar cache da VM", lambda: self._cache_action("clear"), width=185)
+        self.cache_clear.pack(side="left", padx=(10, 0))
+        self.cache_tree = self.tree(cache, ["Modelo", "Preparação", "Detalhes"], [320, 190, 310], height=5)
+        self.cache_hint = self.label(cache, "Conecte a VM para preparar modelos.", muted=True)
+        self.label(cache, "A lista escolhida será preparada automaticamente nas próximas sessões. A RAM usa o cache do Linux e pode ser liberada pelo sistema. A cópia inicial ainda leva tempo; downloads continuam no Drive.", muted=True)
+        self._render_cache()
 
     def _build_accounts(self, parent):
         accounts = self.section(
@@ -614,6 +644,14 @@ class Shell:
         self._render_history()
 
     def _build_settings(self, parent):
+        self.section(
+            parent,
+            "Inicialização · imagem no Google Drive",
+            "Ativa por padrão. Uma instalação pronta é copiada do Drive e extraída no disco da VM. "
+            "Se a base do Colab mudar, o app instala o ambiente novamente e prepara outra imagem em segundo plano. "
+            "Use Atualizar imagem do Drive na aba Sessão após instalar nodes. Encerrar VM também atualiza a imagem antes de desligar. "
+            "Os tempos de cada etapa aparecem no log da sessão.",
+        )
         creds = self.section(
             parent,
             "Credenciais de download",

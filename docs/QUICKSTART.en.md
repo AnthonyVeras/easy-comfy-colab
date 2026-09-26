@@ -46,3 +46,13 @@ Choose **Meu PC** under **Sessão → Onde salvar os resultados** before startin
 Outputs stay temporarily on the VM and are copied to `%USERPROFILE%/Comfy Colab Results/output/<VM ID>/` every 15 seconds while the app is open and the queue is idle. The local `input` folder sits alongside `output`. Other accounts have separate subfolders. Before shutting down, the app pauses the idle server and requires a verified final copy; a failed transfer leaves the VM running and attempts to resume the server.
 
 Input uploads and workflows still use Drive. Custom nodes with their own save paths may bypass this setting. Closing the app stops automatic copying; termination from the Colab website or runtime loss can destroy files not yet copied. Existing Drive files are not moved or deleted.
+
+## Installation images and model cache (2.0.5)
+
+The first GPU session installs the environment and prepares a private archive in your own Drive. Compatible later sessions restore it onto the VM's local disk after integrity checks. The public ZIP contains no prebuilt remote image, models or accounts. A changed Colab Python/PyTorch base can require another full installation.
+
+Use **Sessão → Atualizar imagem do Drive** to save newly installed nodes and dependencies without restarting ComfyUI. **Encerrar VM** performs the same save before shutting down. A failed save keeps the VM running and consuming credits; inspect the activity log and retry. Updates can add several minutes to shutdown. Exiting with the VM still running does not save the image; forced Colab termination cannot run this protection.
+
+**Modelos → Carregamento rápido** offers a temporary VM disk cache and optional bounded RAM pre-reading. Select files manually or from a workflow, then prepare them. Original models remain on Drive. RAM pre-reading uses the Linux page cache, not pinned memory or preloaded VRAM. Its first transfer still takes time.
+
+The reference installation's user reported a reduction from about 17 to 4 minutes. This is an observed result, not a startup-time guarantee. See [validation](VALIDATION.md).

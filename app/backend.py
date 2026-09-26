@@ -203,6 +203,8 @@ class Gateway:
             "start.sh",
             "stop.sh",
             "remote/install.sh",
+            "remote/runtime_image.py",
+            "app/runtime_image.sh",
             "remote/restart.py",
             "remote/mcp_http.py",
             "app/install_hook.sh",

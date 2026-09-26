@@ -2,16 +2,19 @@
 
 | Componente | Referência |
 | --- | --- |
-| Aplicativo | 2.0.1, primeira distribuição comunitária |
+| Aplicativo | 2.0.5, distribuição comunitária experimental |
 | Colab CLI no WSL | `google-colab-cli==0.7.2` |
 | Easy Install | Branch MAC-Linux, commit `2a979fae03ac6c4adc607634b0ef8432e80ecc3e` |
 | ComfyUI | Commit `1568e6cfd04586a4b3c4e1817ea7dde09b1bf9e7` |
 | Comfy MCP | `comfy-mcp==0.10.0` |
 | comfy-cli na VM | `comfy-cli==1.21.0` |
 | PyTorch / CUDA | Fornecidos pelo runtime Colab; o instalador procura preservá-los |
+| ONNX / protobuf na instalação convencional | `onnx==1.19.1`, `protobuf==5.29.6` |
 | Dependências Windows | Fixadas em `requirements.txt` / `requirements-dev.txt` |
 
 O instalador usa a lista de nodes do Easy Install, ignorando o Manager legado quando a versão do ComfyUI oferece sua integração atual. A lista é extraída da revisão fixada, mas cada node é clonado do estado disponível no seu repositório e seus requisitos podem mudar. Portanto, a instalação não é completamente reprodutível.
+
+A imagem privada registra os commits efetivamente capturados e reutiliza os ambientes instalados. As versões globais do runtime entram na verificação de compatibilidade. A instalação convencional impõe restrições para preservar Torch/torchvision/torchaudio e evitar o conflito ONNX/protobuf observado na base de referência. FishAudioS2 é explicitamente ignorado por indisponibilidade da origem dessa lista. Falhas nos demais nodes interrompem a instalação, sem marcar um ambiente incompleto como pronto.
 
 `assignment_guard.py`, `colab_auth_hook.py` e a autorização de Drive usam partes internas do CLI. Atualizar o CLI sem rever esses pontos pode quebrar alocação ou autenticação. Pins tornam a base revisável, mas não garantem compatibilidade futura com os serviços Google.
 
