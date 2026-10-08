@@ -14,6 +14,14 @@ Companion HTTP API on remote 8190: `GET /health` returns account_id/session_id/n
 
 Safety: no arbitrary endpoint stop; no overwrite of conflicting model identity; no direct teardown after server readiness without output/runtime gates; never read old runtime image. Persist node/version manifest and verified last-good runtime artifact. Use ComfyUI standard path configuration for model cache rather than replacing global loader functions.
 
+## ComfyUI browser bridge / Easy Install base (0.1.1)
+
+The pinned frontend's `window.__comfyDesktop2.downloadModel(url,name,directory)` hook serves individual and bulk missing-model downloads. The owned `easy_model_download` custom node proxies JSON from same-origin loopback `/easy-comfy/model-download` and its bounded job-status route to VM companion port 8190. The browser receives job IDs/progress only; the node supplies per-session identity/authentication server-side. Redirects and environment proxies are disabled for this relay. Bulk admission is serial; byte transfers remain parallel in the existing remote queue. Errors never trigger a browser file download.
+
+`POST /credentials/models` replaces only the companion's in-memory provider map. The controller calls it after owned identity verification and after a credential change for the active account. `/comfy/downloads` validates URL, filename, category and optional checksum; status excludes URLs and auth. Runtime preservation verifies the installed bridge bytes.
+
+Easy Install is assembled from a pinned MAC-Linux source catalog, verified Registry artifacts or exact Git fallback pins, safe workflow JSON examples and a protected wheel dependency closure. No upstream Bash installer, desktop helper, arbitrary install.py or replacement Torch/CUDA environment is executed. Base source receipts, tracking and license/provenance are artifact components. Recipe revision 3 includes the base manifest and bridge hashes; previous artifacts remain intact but cannot satisfy the new recipe. Base packages cannot be independently changed through the app; optional stable Registry nodes retain the existing management flow.
+
 ## Parity additions
 
 - `download.list`, `workflow.list`, `node.catalog`, `node.versions`: bounded pages with offset/limit/total; catalog query and registered node/version identifiers validated. Saved workflow checks accept only relative JSON paths within the new Drive workflow directory. Validation evidence belongs to the selected account, session and file.

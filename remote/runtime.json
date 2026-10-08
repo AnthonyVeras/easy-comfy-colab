@@ -1,12 +1,951 @@
 {
   "schema": 1,
-  "install_revision": 2,
-  "core": {"repository": "https://github.com/Comfy-Org/ComfyUI.git", "revision": "d91ed5f5b7fa60fa18464c2ad7c80254da2f0f29"},
+  "install_revision": 3,
+  "easy_install": {
+    "repository": "https://github.com/Tavris1/ComfyUI-Easy-Install.git",
+    "branch": "MAC-Linux",
+    "revision": "fa3882893d083dc116ec0c62b9fdcd4ebc91397e",
+    "installer": {
+      "filename": "ComfyUI-Easy-Install.sh",
+      "sha256": "a2ecaab91bb4a7d13c05413c13da52e3f62013fc9fc8df15a80b07f8ced24896"
+    },
+    "helper": {
+      "filename": "Helper-CEI-NEXT-unix.zip",
+      "bytes": 1296148,
+      "sha256": "acb032bac1a0791c21a99ca1cb630a03dde33a798b05165e8c81040242831d11"
+    },
+    "license": {
+      "filename": "LICENSE",
+      "sha256": "d6c37ce34aa071299deb19255298f01bb141b4326033c5c2c48df558526d4d33"
+    },
+    "requirements": [
+      "transformers==4.57.6",
+      "diffusers==0.35.2",
+      "peft==0.17.1",
+      "huggingface-hub==0.36.2",
+      "protobuf==5.29.6",
+      "numpy==2.3.3",
+      "scipy==1.17.1",
+      "numba==0.63.1",
+      "onnx==1.19.1",
+      "onnxruntime==1.24.3",
+      "opencv-contrib-python-headless==4.13.0.92",
+      "colour-science==0.4.6",
+      "taichi==1.7.4",
+      "clip-interrogator==0.6.0",
+      "blend-modes==2.2.0",
+      "gguf==0.19.0",
+      "omegaconf==2.4.0rc1"
+    ],
+    "dependency_policy": {
+      "python": "3.13",
+      "platform": "Linux x86_64",
+      "opencv_provider": "opencv-contrib-python-headless",
+      "onnx_provider": "onnxruntime",
+      "source_builds": false,
+      "cuda": "inherit Colab; no Torch, Triton or NVIDIA substitution",
+      "status": "LinuxCP313_binary_only_metadata_resolved_not_VM_executed",
+      "omegaconf": "2.4.0rc1 preview: removes sdist-only ANTLR dependency; used APIs require isolated checks and later VM validation",
+      "resolution": {
+        "python": "3.13",
+        "platform": "x86_64-manylinux_2_35",
+        "resolver": "uv0.11.6",
+        "non_cuda_packages": 150,
+        "reserved_cuda_packages": 19,
+        "scope": "core/frontend/Manager/resolver/enabled nodes; mcp-venv remains separate"
+      }
+    },
+    "resolved_constraints": [
+      "accelerate==1.15.0",
+      "addict==2.4.0",
+      "aiohappyeyeballs==2.7.1",
+      "aiohttp==3.14.4",
+      "aiosignal==1.4.0",
+      "alembic==1.20.0",
+      "annotated-doc==0.0.5",
+      "annotated-types==0.8.0",
+      "attrs==26.1.0",
+      "av==19.0.1",
+      "bitsandbytes==0.50.2",
+      "blake3==1.0.11",
+      "blend-modes==2.2.0",
+      "certifi==2026.7.22",
+      "cffi==2.1.1",
+      "chardet==7.6.0",
+      "charset-normalizer==3.5.2",
+      "clip-interrogator==0.6.0",
+      "cloudpickle==3.1.2",
+      "color-matcher==0.6.0",
+      "colorama==0.4.6",
+      "colour-science==0.4.6",
+      "comfy-aimdo==0.5.5",
+      "comfy-angle==0.1.1",
+      "comfy-kitchen==0.2.37",
+      "comfyui-embedded-docs==0.5.13",
+      "comfyui-frontend-package==1.55.14",
+      "comfyui-manager==4.2.2",
+      "comfyui-workflow-templates==0.11.78",
+      "comfyui-workflow-templates-core==0.3.369",
+      "comfyui-workflow-templates-json==0.1.104",
+      "comfyui-workflow-templates-media-api==0.3.84",
+      "comfyui-workflow-templates-media-assets-01==0.1.48",
+      "comfyui-workflow-templates-media-assets-02==0.1.11",
+      "comfyui-workflow-templates-media-image==0.3.160",
+      "comfyui-workflow-templates-media-other==0.3.229",
+      "comfyui-workflow-templates-media-video==0.3.101",
+      "contourpy==1.4.0",
+      "cryptography==50.0.2",
+      "cuda-bindings==13.4.3",
+      "cuda-pathfinder==1.8.3",
+      "cuda-toolkit==13.0.2",
+      "cycler==0.12.1",
+      "ddt==1.7.2",
+      "diffusers==0.35.2",
+      "dill==0.4.1",
+      "docutils==0.23",
+      "einops==0.8.2",
+      "filelock==4.0.12",
+      "flatbuffers==25.12.19",
+      "fonttools==4.66.1",
+      "frozenlist==1.8.0",
+      "fsspec==2026.9.0",
+      "ftfy==6.3.1",
+      "gguf==0.19.0",
+      "gitdb==4.0.12",
+      "gitpython==3.2.0",
+      "hf-xet==1.7.0",
+      "huggingface-hub==0.36.2",
+      "idna==3.20",
+      "imageio==2.38.1",
+      "imageio-ffmpeg==0.6.0",
+      "importlib-metadata==9.0.1",
+      "jinja2==3.1.6",
+      "joblib==1.6.0",
+      "kiwisolver==1.5.1",
+      "kornia==0.8.3",
+      "kornia-rs==0.2.0",
+      "lark==1.3.1",
+      "lazy-loader==0.6",
+      "llvmlite==0.46.0",
+      "loguru==0.7.3",
+      "mako==1.4.3",
+      "markdown-it-py==4.2.0",
+      "markupsafe==3.0.4",
+      "matplotlib==3.11.2",
+      "mdurl==0.1.2",
+      "ml-dtypes==0.6.0",
+      "mpmath==1.3.0",
+      "mss==10.2.0",
+      "multidict==6.9.1",
+      "narwhals==2.26.0",
+      "networkx==3.7",
+      "numba==0.63.1",
+      "numpy==2.3.3",
+      "omegaconf==2.4.0rc1",
+      "onnx==1.19.1",
+      "onnxruntime==1.24.3",
+      "open-clip-torch==3.3.0",
+      "opencv-contrib-python-headless==4.13.0.92",
+      "packaging==26.3",
+      "peft==0.17.1",
+      "pillow==12.3.0",
+      "platformdirs==4.12.4",
+      "propcache==0.5.4",
+      "protobuf==5.29.6",
+      "psutil==7.2.2",
+      "pycparser==3.1",
+      "pydantic==2.14.0",
+      "pydantic-core==2.50.0",
+      "pydantic-settings==2.15.0",
+      "pygithub==2.10.0",
+      "pygments==2.21.0",
+      "pyjwt==2.15.1",
+      "pyloudnorm==0.2.0",
+      "pymatting==1.1.16",
+      "pynacl==1.6.2",
+      "pyopengl==3.1.10",
+      "pyparsing==3.3.3",
+      "python-dateutil==2.9.0.post0",
+      "python-dotenv==1.2.4",
+      "pyyaml==6.0.3",
+      "regex==2026.9.29",
+      "requests==2.34.2",
+      "rich==15.0.0",
+      "rotary-embedding-torch==0.9.1",
+      "safetensors==0.8.0",
+      "scikit-image==0.26.0",
+      "scikit-learn==1.9.1",
+      "scipy==1.17.1",
+      "sentencepiece==0.2.2",
+      "setuptools==81.0.0",
+      "shellingham==1.5.4",
+      "simpleeval==1.0.8",
+      "six==1.17.0",
+      "smmap==5.0.3",
+      "spandrel==0.4.2",
+      "sqlalchemy==2.1.4",
+      "sympy==1.14.0",
+      "taichi==1.7.4",
+      "threadpoolctl==3.7.0",
+      "tifffile==2026.9.20",
+      "timm==1.0.30",
+      "tokenizers==0.22.2",
+      "toml==0.10.2",
+      "torchsde==0.2.6",
+      "tqdm==4.70.1",
+      "trampoline==0.1.2",
+      "transformers==4.57.6",
+      "trimesh==5.1.1",
+      "typer==0.27.3",
+      "typing-extensions==4.16.0",
+      "typing-inspection==0.4.4",
+      "urllib3==2.8.0",
+      "uv==0.12.23",
+      "wcwidth==0.9.2",
+      "yacs==0.1.8",
+      "yapf==0.43.0",
+      "yarl==1.25.1",
+      "zipp==4.1.1"
+    ]
+  },
+  "core": {
+    "repository": "https://github.com/Comfy-Org/ComfyUI.git",
+    "revision": "d91ed5f5b7fa60fa18464c2ad7c80254da2f0f29"
+  },
   "frontend": "1.55.14",
   "manager": "4.2.2",
   "mcp": "0.10.0",
   "comfy_cli": "1.22.0",
   "resolver": "0.12.23",
-  "packages": [],
-  "ports": {"comfy": 8188, "companion": 8190, "mcp": 8189}
+  "packages": [
+    {
+      "id": "comfyui-easy-use",
+      "aliases": [
+        "comfyui-easy-use",
+        "ComfyUI-Easy-Use"
+      ],
+      "folder": "ComfyUI-Easy-Use",
+      "source": "cnr",
+      "repository": "https://github.com/yolain/ComfyUI-Easy-Use.git",
+      "requirements": [
+        "diffusers",
+        "accelerate",
+        "clip_interrogator>=0.6.0",
+        "lark",
+        "sentencepiece",
+        "spandrel",
+        "matplotlib",
+        "peft",
+        "opencv-contrib-python-headless==4.13.0.92",
+        "onnxruntime==1.24.3"
+      ],
+      "version": "1.3.6",
+      "artifact": {
+        "url": "https://cdn.comfy.org/yolain/comfyui-easy-use/1.3.6/node.zip",
+        "sha256": "2a80ae5517780aaed5e3a013f986a6f956970f9a3bad941f35a5615c135caeb7"
+      },
+      "status": "enabled",
+      "original_requirements": [
+        "diffusers",
+        "accelerate",
+        "clip_interrogator>=0.6.0",
+        "lark",
+        "onnxruntime",
+        "opencv-python-headless",
+        "sentencepiece",
+        "spandrel",
+        "matplotlib",
+        "peft"
+      ],
+      "limitations": [
+        "ONNX runs on the CPU provider; CUDAExecutionProvider is unavailable in this recipe."
+      ]
+    },
+    {
+      "id": "comfyui_controlnet_aux",
+      "aliases": [
+        "comfyui_controlnet_aux"
+      ],
+      "folder": "comfyui_controlnet_aux",
+      "source": "cnr",
+      "repository": "https://github.com/Fannovel16/comfyui_controlnet_aux.git",
+      "requirements": [
+        "torch",
+        "importlib_metadata",
+        "huggingface_hub",
+        "scipy",
+        "filelock",
+        "numpy",
+        "Pillow",
+        "einops",
+        "torchvision",
+        "pyyaml",
+        "scikit-image",
+        "python-dateutil",
+        "yapf",
+        "omegaconf",
+        "ftfy",
+        "addict",
+        "yacs",
+        "scikit-learn",
+        "matplotlib",
+        "opencv-contrib-python-headless==4.13.0.92",
+        "onnxruntime==1.24.3",
+        "trimesh"
+      ],
+      "version": "1.1.5",
+      "artifact": {
+        "url": "https://cdn.comfy.org/fannovel16/comfyui_controlnet_aux/1.1.5/node.zip",
+        "sha256": "c8b3c719e0dd44aded4c581906a68f0a7b397fc51ad95404a0cdc205ee4f8422"
+      },
+      "status": "enabled",
+      "original_requirements": [
+        "torch",
+        "importlib_metadata",
+        "huggingface_hub",
+        "scipy",
+        "opencv-python",
+        "filelock",
+        "numpy",
+        "Pillow",
+        "einops",
+        "torchvision",
+        "pyyaml",
+        "scikit-image",
+        "python-dateutil",
+        "mediapipe>=0.8.0",
+        "fvcore",
+        "yapf",
+        "omegaconf",
+        "ftfy",
+        "addict",
+        "yacs",
+        "trimesh[easy]",
+        "albumentations",
+        "scikit-learn",
+        "matplotlib",
+        "onnxruntime-gpu"
+      ],
+      "limitations": [
+        "ONNX runs on the CPU provider; CUDAExecutionProvider is unavailable in this recipe.",
+        "Partial package: guarded wrappers requiring fvcore/iopath or albumentations are unavailable (including DiffusionEdge and Metric3D); MediaPipe face is unavailable on this Python3.13 recipe. Trimesh optional easy extras are excluded. No claim of full Aux parity.",
+        "OmegaConf2.4.0rc1 is a pinned pre-release; source builds are disabled. Local API checks do not replace Colab validation."
+      ]
+    },
+    {
+      "id": "rgthree-comfy",
+      "aliases": [
+        "rgthree-comfy"
+      ],
+      "folder": "rgthree-comfy",
+      "source": "cnr",
+      "repository": "https://github.com/rgthree/rgthree-comfy.git",
+      "requirements": [],
+      "version": "1.0.2608210019",
+      "artifact": {
+        "url": "https://cdn.comfy.org/rgthree/rgthree-comfy/1.0.2608210019/node.zip",
+        "sha256": "0f33b2f093d085aac837fd89d320bedda6ffedd1f7d245b734e3697641e5726d"
+      },
+      "status": "enabled",
+      "original_requirements": [],
+      "limitations": []
+    },
+    {
+      "id": "comfyui-itools",
+      "aliases": [
+        "comfyui-itools"
+      ],
+      "folder": "comfyui-itools",
+      "source": "cnr",
+      "repository": "https://github.com/MohammadAboulEla/ComfyUI-iTools.git",
+      "requirements": [
+        "Pillow",
+        "numpy",
+        "torch",
+        "pyyaml"
+      ],
+      "version": "0.7.8",
+      "artifact": {
+        "url": "https://cdn.comfy.org/makadi/comfyui-itools/0.7.8/node.zip",
+        "sha256": "28e69a4516b3f0475dc5cfed140cc32780dcf1612b52813ead4789ce704d5b75"
+      },
+      "status": "enabled",
+      "original_requirements": [
+        "Pillow",
+        "numpy",
+        "torch",
+        "pyyaml"
+      ],
+      "limitations": []
+    },
+    {
+      "id": "ComfyUI-GGUF",
+      "aliases": [
+        "comfyui-gguf",
+        "ComfyUI-GGUF"
+      ],
+      "folder": "ComfyUI-GGUF",
+      "source": "cnr",
+      "repository": "https://github.com/city96/ComfyUI-GGUF.git",
+      "requirements": [
+        "gguf>=0.13.0",
+        "sentencepiece",
+        "protobuf"
+      ],
+      "version": "1.1.10",
+      "artifact": {
+        "url": "https://cdn.comfy.org/city96/ComfyUI-GGUF/1.1.10/node.zip",
+        "sha256": "20bf8136b42a970242e0ee7069f0ba70350184da1305c212882fd89534dd328b"
+      },
+      "status": "enabled",
+      "original_requirements": [
+        "gguf>=0.13.0",
+        "sentencepiece",
+        "protobuf"
+      ],
+      "limitations": [
+        "Pinned GGUF1.1.10 does not support the legacy qwen_image21 architecture patch."
+      ]
+    },
+    {
+      "id": "controlaltai-nodes",
+      "aliases": [
+        "controlaltai-nodes"
+      ],
+      "folder": "controlaltai-nodes",
+      "source": "cnr",
+      "repository": "https://github.com/gseth/ControlAltAI-Nodes.git",
+      "requirements": [],
+      "version": "1.1.4",
+      "artifact": {
+        "url": "https://cdn.comfy.org/controlaltai/controlaltai-nodes/1.1.4/node.zip",
+        "sha256": "dbb6bb3f21aa4cacd248d3687a17cf62e71044e0a8df8d14eb9d3fd7d6da3c82"
+      },
+      "status": "enabled",
+      "original_requirements": [],
+      "limitations": []
+    },
+    {
+      "id": "comfyui-inpaint-cropandstitch",
+      "aliases": [
+        "comfyui-inpaint-cropandstitch"
+      ],
+      "folder": "comfyui-inpaint-cropandstitch",
+      "source": "cnr",
+      "repository": "https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch.git",
+      "requirements": [],
+      "version": "3.0.17",
+      "artifact": {
+        "url": "https://cdn.comfy.org/lquesada/comfyui-inpaint-cropandstitch/3.0.17/node.zip",
+        "sha256": "21c6d2f48774068846a6c545af8e3fbe2411504deb0a297ad026e3febb213a5e"
+      },
+      "status": "enabled",
+      "original_requirements": [],
+      "limitations": []
+    },
+    {
+      "id": "comfyui-rmbg",
+      "aliases": [
+        "comfyui-rmbg"
+      ],
+      "folder": "comfyui-rmbg",
+      "source": "cnr",
+      "repository": "https://github.com/1038lab/ComfyUI-RMBG.git",
+      "requirements": [],
+      "version": "3.1.0",
+      "artifact": {
+        "url": "https://cdn.comfy.org/ailab/comfyui-rmbg/3.1.0/node.zip",
+        "sha256": "a456aa435447091cb4abfe22f5cc5d9125a217dc43b828c7e165971dfea2c60f"
+      },
+      "status": "unsupported",
+      "reason": "groundingdino-py0.4.0 and iopath0.1.10 have no PyPI wheels; SAM2/SAM3 imports require iopath. No upstream build hooks are executed.",
+      "original_requirements": [
+        "huggingface-hub>=0.19.0",
+        "transparent-background>=1.1.2",
+        "segment-anything>=1.0",
+        "groundingdino-py>=0.4.0",
+        "opencv-python>=4.7.0",
+        "onnxruntime>=1.15.0",
+        "onnxruntime-gpu>=1.15.0",
+        "protobuf>=3.20.2,<6.0.0",
+        "transformers>=4.30.0",
+        "diffusers>=0.18.0",
+        "hydra-core>=1.3.0",
+        "omegaconf>=2.3.0",
+        "iopath>=0.1.9",
+        "decord",
+        "ftfy",
+        "typing_extensions"
+      ],
+      "limitations": [
+        "ONNX runs on the CPU provider; CUDAExecutionProvider is unavailable in this recipe."
+      ]
+    },
+    {
+      "id": "comfyui-videohelpersuite",
+      "aliases": [
+        "comfyui-videohelpersuite"
+      ],
+      "folder": "comfyui-videohelpersuite",
+      "source": "cnr",
+      "repository": "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git",
+      "requirements": [
+        "imageio-ffmpeg",
+        "opencv-contrib-python-headless==4.13.0.92"
+      ],
+      "version": "1.7.9",
+      "artifact": {
+        "url": "https://cdn.comfy.org/kosinkadink/comfyui-videohelpersuite/1.7.9/node.zip",
+        "sha256": "ac63991d8b237afe5b2cd2b287a14b4a4d40ff203c0f2ee9d5fe61059f57cdf8"
+      },
+      "status": "enabled",
+      "original_requirements": [
+        "opencv-python",
+        "imageio-ffmpeg"
+      ],
+      "limitations": []
+    },
+    {
+      "id": "ComfyUI-TiledDiffusion",
+      "aliases": [
+        "comfyui-tileddiffusion",
+        "ComfyUI-TiledDiffusion"
+      ],
+      "folder": "ComfyUI-TiledDiffusion",
+      "source": "git",
+      "repository": "https://github.com/shiimizu/ComfyUI-TiledDiffusion.git",
+      "revision": "a155b1bac39147381aeaa52b9be42e545626a44f",
+      "requirements": [],
+      "status": "enabled",
+      "original_requirements": [],
+      "limitations": []
+    },
+    {
+      "id": "comfyui-kjnodes",
+      "aliases": [
+        "comfyui-kjnodes"
+      ],
+      "folder": "comfyui-kjnodes",
+      "source": "cnr",
+      "repository": "https://github.com/kijai/ComfyUI-KJNodes.git",
+      "requirements": [
+        "pillow>=10.3.0",
+        "color-matcher",
+        "matplotlib",
+        "mss",
+        "opencv-contrib-python-headless==4.13.0.92"
+      ],
+      "version": "1.5.0",
+      "artifact": {
+        "url": "https://cdn.comfy.org/kijai/comfyui-kjnodes/1.5.0/node.zip",
+        "sha256": "a7a41da994ecd1fa4327a6a41f0df54c743132d2db21f620890ff6570982a39e"
+      },
+      "status": "enabled",
+      "original_requirements": [
+        "pillow>=10.3.0",
+        "color-matcher",
+        "matplotlib",
+        "mss",
+        "opencv-python-headless"
+      ],
+      "limitations": []
+    },
+    {
+      "id": "ComfyUI-WanVideoWrapper",
+      "aliases": [
+        "comfyui-wanvideowrapper",
+        "ComfyUI-WanVideoWrapper"
+      ],
+      "folder": "ComfyUI-WanVideoWrapper",
+      "source": "cnr",
+      "repository": "https://github.com/kijai/ComfyUI-WanVideoWrapper.git",
+      "requirements": [
+        "ftfy",
+        "accelerate>=1.2.1",
+        "einops",
+        "diffusers>=0.33.0",
+        "peft>=0.17.0",
+        "sentencepiece>=0.2.0",
+        "protobuf",
+        "pyloudnorm",
+        "gguf>=0.17.1",
+        "scipy",
+        "opencv-contrib-python-headless==4.13.0.92"
+      ],
+      "version": "1.4.7",
+      "artifact": {
+        "url": "https://cdn.comfy.org/kijai/ComfyUI-WanVideoWrapper/1.4.7/node.zip",
+        "sha256": "50ccbf1d3cc63367c65193603b66b42d8ea74496834a2f9d8fdbbd333ef27fa6"
+      },
+      "status": "enabled",
+      "original_requirements": [
+        "ftfy",
+        "accelerate>=1.2.1",
+        "einops",
+        "diffusers>=0.33.0",
+        "peft>=0.17.0",
+        "sentencepiece>=0.2.0",
+        "protobuf",
+        "pyloudnorm",
+        "gguf>=0.17.1",
+        "opencv-python",
+        "scipy"
+      ],
+      "limitations": []
+    },
+    {
+      "id": "ComfyUI-QwenVL",
+      "aliases": [
+        "comfyui-qwenvl",
+        "ComfyUI-QwenVL"
+      ],
+      "folder": "ComfyUI-QwenVL",
+      "source": "cnr",
+      "repository": "https://github.com/1038lab/ComfyUI-QwenVL.git",
+      "requirements": [
+        "transformers",
+        "torch",
+        "huggingface-hub",
+        "hf_xet",
+        "psutil",
+        "numpy",
+        "Pillow",
+        "bitsandbytes",
+        "accelerate",
+        "opencv-contrib-python-headless==4.13.0.92"
+      ],
+      "version": "2.2.0",
+      "artifact": {
+        "url": "https://cdn.comfy.org/ailab/ComfyUI-QwenVL/2.2.0/node.zip",
+        "sha256": "bb8cc1c8a83e9a001eb1c9881ce3b15cc7a6ca060610bf9ec99c4f49775a1036"
+      },
+      "status": "enabled",
+      "original_requirements": [
+        "transformers",
+        "torch",
+        "huggingface-hub",
+        "hf_xet",
+        "psutil",
+        "numpy",
+        "Pillow",
+        "opencv-python",
+        "bitsandbytes",
+        "accelerate"
+      ],
+      "limitations": []
+    },
+    {
+      "id": "qwen3-tts-comfyui",
+      "aliases": [
+        "qwen3-tts-comfyui"
+      ],
+      "folder": "qwen3-tts-comfyui",
+      "source": "cnr",
+      "repository": "https://github.com/flybirdxx/ComfyUI-Qwen-TTS.git",
+      "requirements": [],
+      "version": "1.0.7",
+      "artifact": {
+        "url": "https://cdn.comfy.org/flybirdxx/qwen3-tts-comfyui/1.0.7/node.zip",
+        "sha256": "e5bd738234764518e723d63ac69d246b4cbff2a7e2b771c1c0d318cfe43fed10"
+      },
+      "status": "unsupported",
+      "reason": "sox1.5.0 has no PyPI wheel; both tokenizer imports initialize the sox-dependent speech module.",
+      "original_requirements": [
+        "torch",
+        "torchaudio",
+        "transformers>=4.57.0",
+        "librosa",
+        "soundfile",
+        "accelerate",
+        "numpy",
+        "einops",
+        "tiktoken",
+        "sentencepiece",
+        "sox",
+        "huggingface_hub",
+        "onnxruntime",
+        "onnxruntime-gpu",
+        "safetensors",
+        "scipy>=1.11.0"
+      ],
+      "limitations": [
+        "ONNX runs on the CPU provider; CUDAExecutionProvider is unavailable in this recipe."
+      ]
+    },
+    {
+      "id": "seedvr2_videoupscaler",
+      "aliases": [
+        "seedvr2_videoupscaler"
+      ],
+      "folder": "seedvr2_videoupscaler",
+      "source": "cnr",
+      "repository": "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git",
+      "requirements": [
+        "torch",
+        "torchvision",
+        "safetensors",
+        "numpy",
+        "tqdm",
+        "psutil",
+        "einops",
+        "omegaconf>=2.3.0",
+        "diffusers>=0.33.1",
+        "peft>=0.17.0",
+        "rotary_embedding_torch>=0.5.3",
+        "gguf",
+        "matplotlib",
+        "opencv-contrib-python-headless==4.13.0.92"
+      ],
+      "version": "2.5.24",
+      "artifact": {
+        "url": "https://cdn.comfy.org/ainvfx/seedvr2_videoupscaler/2.5.24/node.zip",
+        "sha256": "a5d5e93aead0ad901fbbe362078f84910425f81c5ef976b7f5c0c48265a7bb81"
+      },
+      "status": "enabled",
+      "original_requirements": [
+        "torch",
+        "torchvision",
+        "safetensors",
+        "numpy",
+        "tqdm",
+        "psutil",
+        "einops",
+        "omegaconf>=2.3.0",
+        "diffusers>=0.33.1",
+        "peft>=0.17.0",
+        "rotary_embedding_torch>=0.5.3",
+        "opencv-python",
+        "gguf",
+        "matplotlib"
+      ],
+      "limitations": [
+        "OmegaConf2.4.0rc1 is a pinned pre-release; source builds are disabled. Local API checks do not replace Colab validation."
+      ]
+    },
+    {
+      "id": "comfyui_layerstyle",
+      "aliases": [
+        "comfyui_layerstyle"
+      ],
+      "folder": "comfyui_layerstyle",
+      "source": "cnr",
+      "repository": "https://github.com/chflame163/ComfyUI_LayerStyle.git",
+      "requirements": [
+        "numpy",
+        "pillow",
+        "torch",
+        "matplotlib",
+        "Scipy",
+        "scikit_image",
+        "scikit_learn",
+        "pymatting",
+        "timm",
+        "colour-science",
+        "transformers>=4.43.2",
+        "blend_modes",
+        "huggingface_hub>=0.23.4",
+        "loguru",
+        "opencv-contrib-python-headless==4.13.0.92"
+      ],
+      "version": "2.0.40",
+      "artifact": {
+        "url": "https://cdn.comfy.org/chflame163/comfyui_layerstyle/2.0.40/node.zip",
+        "sha256": "64631d964adba221f50d9febeadc000586ceecb4e3abd6ed6124c63bda4f5a61"
+      },
+      "status": "enabled",
+      "original_requirements": [
+        "numpy",
+        "pillow",
+        "torch",
+        "matplotlib",
+        "Scipy",
+        "scikit_image",
+        "scikit_learn",
+        "opencv-contrib-python",
+        "pymatting",
+        "timm",
+        "colour-science",
+        "transformers>=4.43.2",
+        "blend_modes",
+        "huggingface_hub>=0.23.4",
+        "loguru"
+      ],
+      "limitations": []
+    },
+    {
+      "id": "ComfyUI-WanAnimatePreprocess",
+      "aliases": [
+        "comfyui-wananimatepreprocess",
+        "ComfyUI-WanAnimatePreprocess"
+      ],
+      "folder": "ComfyUI-WanAnimatePreprocess",
+      "source": "cnr",
+      "repository": "https://github.com/kijai/ComfyUI-WanAnimatePreprocess.git",
+      "requirements": [
+        "onnx",
+        "opencv-contrib-python-headless==4.13.0.92",
+        "onnxruntime==1.24.3"
+      ],
+      "version": "1.0.3",
+      "artifact": {
+        "url": "https://cdn.comfy.org/kijai/ComfyUI-WanAnimatePreprocess/1.0.3/node.zip",
+        "sha256": "b0a7149fd301cc1fe76c14f0447de29cc9a145535e5a4f16eb2d056e525de564"
+      },
+      "status": "enabled",
+      "original_requirements": [
+        "onnx",
+        "onnxruntime-gpu",
+        "opencv-python"
+      ],
+      "limitations": [
+        "ONNX runs on the CPU provider; CUDAExecutionProvider is unavailable in this recipe."
+      ]
+    },
+    {
+      "id": "ComfyUI-Pixaroma",
+      "aliases": [
+        "comfyui-pixaroma",
+        "ComfyUI-Pixaroma"
+      ],
+      "folder": "ComfyUI-Pixaroma",
+      "source": "cnr",
+      "repository": "https://gitlab.com/pixaroma/ComfyUI-Pixaroma.git",
+      "requirements": [],
+      "version": "1.4.144",
+      "artifact": {
+        "url": "https://cdn.comfy.org/pixaroma/ComfyUI-Pixaroma/1.4.144/node.zip",
+        "sha256": "5c9f1a86c03bee31708970db7232232aa850c7f5a92690afa69a6b9efdd19412"
+      },
+      "status": "enabled",
+      "original_requirements": [],
+      "limitations": [
+        "Registry artifact identity/version/hash is authoritative; upstream installer repository is GitLab while Registry metadata also refers to GitHub."
+      ]
+    },
+    {
+      "id": "comfyui-easy-sam3",
+      "aliases": [
+        "comfyui-easy-sam3"
+      ],
+      "folder": "comfyui-easy-sam3",
+      "source": "cnr",
+      "repository": "https://github.com/yolain/ComfyUI-Easy-Sam3.git",
+      "requirements": [],
+      "version": "1.0.4",
+      "artifact": {
+        "url": "https://cdn.comfy.org/yolain/comfyui-easy-sam3/1.0.4/node.zip",
+        "sha256": "9eac272918adc183cd45ddb514cf0483f47b79c78ae851bfca8e56c0261830c2"
+      },
+      "status": "unsupported",
+      "reason": "iopath0.1.10 has no PyPI wheel and is imported by the model builder.",
+      "original_requirements": [
+        "timm>=1.0.17",
+        "ftfy==6.1.1",
+        "regex",
+        "iopath>=0.1.10",
+        "einops>=0.6.0",
+        "decord>=0.6.0",
+        "pycocotools>=2.0.10",
+        "numpy>=1.26",
+        "tqdm",
+        "typing_extensions"
+      ],
+      "limitations": []
+    },
+    {
+      "id": "ComfyUI-SCAIL-Pose",
+      "aliases": [
+        "comfyui-scail-pose",
+        "ComfyUI-SCAIL-Pose"
+      ],
+      "folder": "ComfyUI-SCAIL-Pose",
+      "source": "cnr",
+      "repository": "https://github.com/kijai/ComfyUI-SCAIL-Pose.git",
+      "requirements": [
+        "taichi>=1.7.4",
+        "pillow",
+        "opencv-contrib-python-headless==4.13.0.92"
+      ],
+      "version": "1.0.2",
+      "artifact": {
+        "url": "https://cdn.comfy.org/kijai/ComfyUI-SCAIL-Pose/1.0.2/node.zip",
+        "sha256": "997c5d13f3be1cbc09c15e5950fc3b356075ddab89cbaee99df0a775029e8309"
+      },
+      "status": "enabled",
+      "original_requirements": [
+        "taichi>=1.7.4",
+        "opencv-python",
+        "pillow"
+      ],
+      "limitations": []
+    },
+    {
+      "id": "ComfyUI-MelBandRoFormer",
+      "aliases": [
+        "comfyui-melbandroformer",
+        "ComfyUI-MelBandRoFormer"
+      ],
+      "folder": "ComfyUI-MelBandRoFormer",
+      "source": "cnr",
+      "repository": "https://github.com/kijai/ComfyUI-MelBandRoFormer.git",
+      "requirements": [
+        "rotary_embedding_torch",
+        "einops"
+      ],
+      "version": "1.0.2",
+      "artifact": {
+        "url": "https://cdn.comfy.org/kijai/ComfyUI-MelBandRoFormer/1.0.2/node.zip",
+        "sha256": "0d4e74fae1569596976a24df3f637599c780f9547a5344f4978e0b9d90cbf3c7"
+      },
+      "status": "enabled",
+      "original_requirements": [
+        "rotary_embedding_torch",
+        "einops"
+      ],
+      "limitations": []
+    },
+    {
+      "id": "ComfyUI-Krea2T-Enhancer",
+      "aliases": [
+        "comfyui-krea2t-enhancer",
+        "ComfyUI-Krea2T-Enhancer"
+      ],
+      "folder": "ComfyUI-Krea2T-Enhancer",
+      "source": "cnr",
+      "repository": "https://github.com/capitan01R/ComfyUI-Krea2T-Enhancer.git",
+      "requirements": [],
+      "version": "1.4.3",
+      "artifact": {
+        "url": "https://cdn.comfy.org/capitan01r/ComfyUI-Krea2T-Enhancer/1.4.3/node.zip",
+        "sha256": "39336a287986ccb6fa91608aac427a66fc96c8f520e9a1a3ead94654688e4ba6"
+      },
+      "status": "enabled",
+      "original_requirements": [],
+      "limitations": []
+    },
+    {
+      "id": "comfyui-krea2edit",
+      "aliases": [
+        "comfyui-krea2edit",
+        "ComfyUI-Krea2Edit"
+      ],
+      "folder": "ComfyUI-Krea2Edit",
+      "source": "cnr",
+      "repository": "https://github.com/lbouaraba/comfyui-krea2edit.git",
+      "requirements": [],
+      "version": "1.2.3",
+      "artifact": {
+        "url": "https://cdn.comfy.org/conradlocke/comfyui-krea2edit/1.2.3/node.zip",
+        "sha256": "0bbc7e726253d08a67868fe428540bce46868c1070ab584b2e5fc6c63ad31c63"
+      },
+      "status": "enabled",
+      "original_requirements": [],
+      "limitations": []
+    }
+  ],
+  "ports": {
+    "comfy": 8188,
+    "companion": 8190,
+    "mcp": 8189
+  }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "easy-comfy-colab-2"
-version = "0.1.0"
+version = "0.1.1"
 description = "Easy Comfy Colab 2 native shell"
 edition = "2021"
 

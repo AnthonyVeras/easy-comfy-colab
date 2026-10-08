@@ -2,6 +2,10 @@
 
 Updated 2026-10-08. This file records evidence, not estimates or simulated success.
 
+Preview 0.1.1 adds a ComfyUI frontend bridge: both missing-model download actions submit to the owned VM queue, never a browser file download. HF/Civitai credentials remain in the controller and companion memory. The new recipe derives a pinned base from Tavris1/ComfyUI-Easy-Install: 20 enabled packages (Aux has documented limits), ten safe workflow templates and three visibly pending packages (RMBG, Easy SAM3, Qwen3 TTS). Its 150 non-CUDA constraints resolved 169 Linux dependency metadata records; Colab CUDA packages remain reserved. This is local/source verification, not a successful full VM installation.
+
+0.1.1 verification: 111 controller tests passed; runtime ran 141 tests (138 passed, three Windows symlink skips); 28 UI/i18n, three model frontend, three IPC bridge and seven tooling tests passed. Python, TypeScript and Cargo checks passed. The release installer was built and the installed preview opened idle with the desktop shortcut and private accounts preserved. Remote download clicks, all enabled nodes and the revised artifact still require a real VM test; no VM was allocated for this update. Desktop performance measurements below apply to 0.1.0, not a new 0.1.1 benchmark.
+
 | Cycle | Status | Evidence / remaining gate |
 | --- | --- | --- |
 | 0 | Complete | New local Git repository, dedicated MCP registered, 19 initial notes written/read back; existing Obsidian connection preserved |

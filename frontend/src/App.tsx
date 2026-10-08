@@ -142,6 +142,7 @@ export default function App() {
   const history = historyPage?.items ?? data.history;
   const nodePackages = nodePage?.items ?? data.packages;
   const basePackages = data.packages.filter(item => ['core', 'frontend', 'manager', 'mcp'].includes(item.id));
+  const pendingBase = Array.isArray(data.capabilities.pending_base_packages) ? data.capabilities.pending_base_packages.filter((value): value is string => typeof value === 'string') : [];
   const initialInstalled = data.packages.filter(item => !['core', 'frontend', 'manager', 'mcp'].includes(item.id)).slice(0, 50);
   const installedNodes = [...basePackages, ...(installedNodePage?.items ?? initialInstalled)];
   const models = libraryModels.filter(item => `${item.name} ${item.category}`.toLocaleLowerCase(language).includes(deferredQuery));
@@ -369,6 +370,7 @@ export default function App() {
         </div>
 
         <div hidden={page !== 'nodes'} className="page-content">
+          {pendingBase.length ? <Card title={t('pendingBasePackages')}><p>{t('pendingBaseHint')}</p><p>{pendingBase.join(', ')}</p></Card> : null}
           <Card title={t('registry')}><form className="search-row" onSubmit={event => { event.preventDefault(); void listNodes(); }}><Field label={t('registrySearch')}><input type="search" value={nodeQuery} onChange={event => setNodeQuery(event.target.value)} /></Field><button className="primary" disabled={!comfyReady || locked}>{t('searchRegistry')}</button></form><p>{t('registryHint')}</p>
             {nodePage ? <><div className="package-list">{nodePage.items.map(item => <article className="package" key={item.id}><div><span className="eyebrow">{item.installed ? t('installed') : t('registry')}</span><h3>{item.name ?? item.id}</h3><small>{item.id}</small>{item.description ? <p>{item.description}</p> : null}<p>{t(item.compatibility?.state === 'compatible' ? 'compatible' : item.compatibility?.state === 'incompatible' ? 'incompatible' : 'compatibilityUnknown')}</p></div><button disabled={!comfyReady || locked} onClick={() => void listVersions(item.id)}>{t('chooseVersion')}</button></article>)}</div>{!nodePage.items.length ? <p>{t('noPackages')}</p> : null}<Pagination page={nodePage} noun={t('packageCount')} disabled={!comfyReady || locked} t={t} onPage={offset => void listNodes(offset)} /></> : null}
           </Card>

@@ -5,6 +5,8 @@ import argparse
 import importlib.metadata
 import importlib.util
 import hmac
+import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -12,9 +14,14 @@ import shutil
 import signal
 import socket
 import stat
+import re
 import subprocess
 import sys
 import time
+import tempfile
+import tomllib
+import zipfile
+from pathlib import PurePosixPath
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
@@ -22,14 +29,295 @@ from urllib.request import Request, urlopen
 if __package__:
     from . import artifacts
     from .cache import model_paths
-    from .common import Fault, Paths, atomic_json, comfy_json, public_identity, read_json, validate_identity
+    from .common import Fault, Paths, atomic_bytes, atomic_json, comfy_json, digest, inside, public_identity, read_json, relative_path, validate_identity
 else:
     import artifacts
     from cache import model_paths
-    from common import Fault, Paths, atomic_json, comfy_json, public_identity, read_json, validate_identity
+    from common import Fault, Paths, atomic_bytes, atomic_json, comfy_json, digest, inside, public_identity, read_json, relative_path, validate_identity
 
 MANIFEST = read_json(Path(__file__).with_name("runtime.json"))
 OPERATION_STATUS = None
+
+
+def download_reviewed(url, checksum, limit):
+    if not re.fullmatch(r"[0-9a-f]{64}", checksum): raise Fault("unlocked_dependency", "A reviewed source lacks its SHA-256 pin.")
+    parsed = urlsplit(url)
+    if parsed.scheme != "https" or parsed.username or parsed.password or parsed.fragment:
+        raise Fault("unlocked_dependency", "Reviewed installation resources require credential-free HTTPS origins.")
+    try:
+        with urlopen(Request(url, headers={"User-Agent":"EasyComfyColab2/bootstrap"}), timeout=45) as response:
+            payload = response.read(limit+1)
+        if len(payload) > limit or hashlib.sha256(payload).hexdigest() != checksum:
+            raise Fault("integrity_failed", "A reviewed installation resource failed its size or SHA-256 verification.")
+        return payload
+    except Fault: raise
+    except Exception: raise Fault("easy_install_unavailable", "A pinned Easy Install resource could not be downloaded. Preserve this VM and retry the same preparation.") from None
+
+
+def easy_install_sources(paths):
+    spec = MANIFEST["easy_install"]
+    if spec["repository"] != "https://github.com/Tavris1/ComfyUI-Easy-Install.git" or not re.fullmatch(r"[0-9a-f]{40}", spec["revision"]):
+        raise Fault("unlocked_dependency", "Easy Install must use its reviewed repository and exact commit.")
+    folder = paths.root/"locks/easy-install"; folder.mkdir(parents=True, exist_ok=True)
+    result = {}
+    for key, limit in (("installer",512*1024),("helper",4*1024*1024),("license",64*1024)):
+        item = spec[key]; filename = item["filename"]
+        if len(relative_path(filename).parts) != 1: raise Fault("invalid_path", "Reviewed resource filenames cannot contain directories.")
+        file = folder/filename
+        if file.is_symlink(): raise Fault("unsafe_artifact", "An Easy Install resource cannot be a symbolic link.")
+        if not file.is_file() or digest(file) != item["sha256"]:
+            url = "https://raw.githubusercontent.com/Tavris1/ComfyUI-Easy-Install/"+spec["revision"]+"/"+filename
+            payload = download_reviewed(url,item["sha256"],limit)
+            if key == "helper" and len(payload) != item["bytes"]: raise Fault("integrity_failed", "The Easy Install helper size differs from its reviewed pin.")
+            atomic_bytes(file,payload)
+        result[key]=file
+    nodes = {}
+    for line in result["installer"].read_text(encoding="utf-8").splitlines():
+        match = re.fullmatch(r"\s*get_node\s+(https://[^\s]+)\s+([A-Za-z0-9_.-]+)\s*",line)
+        if match:
+            repository, name = match.groups()
+            if name in nodes and nodes[name] != repository: raise Fault("unlocked_dependency", "The reviewed Easy Install node catalog contains conflicting sources.")
+            nodes[name] = repository
+    atomic_json(folder/"provenance.json", {"revision":spec["revision"],"repository":spec["repository"],"files":{key:spec[key]["sha256"] for key in result},"nodes":nodes})
+    return result, nodes
+
+
+def validate_existing_template(target):
+    try:
+        if target.is_symlink(): raise Fault("invalid_path", "A workflow template destination contains a symbolic link.")
+        with target.open("rb") as saved: payload=saved.read(16*1024*1024+1)
+        workflow=json.loads(payload,parse_constant=lambda _: (_ for _ in ()).throw(ValueError()))
+        if len(payload)>16*1024*1024 or not isinstance(workflow,dict) or not workflow: raise ValueError()
+    except (OSError,ValueError,UnicodeError):
+        raise Fault("template_conflict", "An existing Easy Install workflow is incomplete or invalid. Preserve it, rename it and retry preparation.") from None
+
+
+def install_easy_templates(paths, helper):
+    # Read only the shipped JSON examples, never desktop helpers, CSS or executable scripts.
+    prefix="ComfyUI-Easy-Install/ComfyUI/user/default/workflows/"
+    target_root=paths.drive/"user/default/workflows/Easy Install"
+    copied, existing, expanded, seen = 0, 0, 0, set()
+    try:
+        with zipfile.ZipFile(helper) as archive:
+            members=archive.infolist()
+            if len(members)>2000: raise Fault("easy_install_unsafe", "The reviewed helper exceeded its entry limit.")
+            for info in sorted(members,key=lambda member:member.filename):
+                if not info.filename.startswith(prefix) or info.is_dir() or not info.filename.lower().endswith(".json"): continue
+                name=info.filename[len(prefix):]
+                relative_path(name)
+                if len(name.encode("utf-8"))>1024 or name in seen or stat.S_ISLNK(info.external_attr>>16):
+                    raise Fault("easy_install_unsafe", "The helper contains an unsafe or duplicate workflow path.")
+                seen.add(name); expanded+=info.file_size
+                if info.file_size>16*1024*1024 or expanded>32*1024*1024:
+                    raise Fault("easy_install_unsafe", "The helper workflow data exceeded its bounded size.")
+                payload=archive.read(info)
+                workflow=json.loads(payload,parse_constant=lambda _: (_ for _ in ()).throw(ValueError()))
+                if not isinstance(workflow,dict) or not workflow: raise Fault("invalid_workflow", "The helper contains an invalid workflow JSON object.")
+                target=inside(target_root,name)
+                for parent in [target_root,*target.parents]:
+                    if parent.is_symlink(): raise Fault("invalid_path", "Workflow template destinations cannot contain symbolic links.")
+                    if parent==paths.drive.parent: break
+                if target.is_symlink(): raise Fault("invalid_path", "A workflow template destination contains a symbolic link.")
+                if target.exists():
+                    # A prior interrupted write cannot be mistaken for a customized valid example.
+                    validate_existing_template(target)
+                    existing+=1; continue
+                target.parent.mkdir(parents=True,exist_ok=True)
+                # Exclusive creation prevents replacing templates customized outside this app.
+                created=None
+                try:
+                    with target.open("xb") as stream:
+                        created=os.fstat(stream.fileno())
+                        if stream.write(payload)!=len(payload): raise OSError("Incomplete workflow write")
+                        stream.flush(); os.fsync(stream.fileno())
+                except FileExistsError:
+                    validate_existing_template(target)
+                    existing+=1; continue
+                except OSError:
+                    # Delete only the inode this operation exclusively created, never another writer's file.
+                    try:
+                        actual=target.lstat()
+                        if created is not None and (actual.st_ino,actual.st_dev)==(created.st_ino,created.st_dev) and stat.S_ISREG(actual.st_mode): target.unlink()
+                    except OSError: pass
+                    raise Fault("template_write_failed", "An Easy Install workflow could not be written completely. Preserve this VM and retry after checking Drive space.") from None
+                copied+=1
+    except Fault: raise
+    except (ValueError,zipfile.BadZipFile,RuntimeError): raise Fault("easy_install_unsafe", "The reviewed helper could not be read as safe workflow JSON.") from None
+    return {"copied":copied,"existing":existing,"source_revision":MANIFEST["easy_install"]["revision"]}
+
+
+def install_model_bridge(paths):
+    if __package__: from .model_bridge import install_model_bridge as install
+    else: from model_bridge import install_model_bridge as install
+    return install(paths)
+
+
+def package_folder(root, package):
+    folder = package.get("folder")
+    if not isinstance(folder,str) or not re.fullmatch(r"[A-Za-z0-9_.-]+",folder) or folder in {".","..","easy_runtime_guard","easy_model_download"}:
+        raise Fault("unlocked_dependency", "A reviewed Easy Install package has an invalid folder pin.")
+    target = Path(root)/"ComfyUI/custom_nodes"/folder
+    if target.is_symlink() or target.parent.is_symlink(): raise Fault("unsafe_artifact", "A base custom-node directory cannot be a symbolic link.")
+    return target
+
+
+def git_identity(target, package):
+    try:
+        commands = [("rev-parse","HEAD"),("remote","get-url","origin"),("status","--porcelain","--untracked-files=normal")]
+        values=[]
+        for args in commands:
+            result = subprocess.run(["git","-C",str(target),*args],check=True,capture_output=True,text=True,timeout=20)
+            values.append(result.stdout.strip())
+        return values[0] == package["revision"] and values[1].removesuffix(".git") == package["repository"].removesuffix(".git") and not values[2]
+    except (OSError,subprocess.SubprocessError,KeyError): return False
+
+
+def verify_easy_node(root, node_id, item):
+    """Allow only an unchanged manifest-pinned Git fallback, never an arbitrary nightly node."""
+    if not isinstance(node_id,str) or not isinstance(item,dict): return False
+    for package in MANIFEST.get("packages",[]):
+        if package.get("status","enabled") != "enabled" or package.get("source") != "git" or node_id not in [package.get("id"),*package.get("aliases",[])]: continue
+        if item.get("ver") not in {"nightly","unknown"}: return False
+        if not re.fullmatch(r"[0-9a-f]{40}",str(package.get("revision",""))): return False
+        try: return git_identity(package_folder(root,package),package)
+        except Fault: return False
+    return False
+
+
+def extract_easy_package(payload, destination):
+    seen, total = set(),0
+    try:
+        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+            members=archive.infolist()
+            if len(members)>10000: raise Fault("easy_install_unsafe", "A base package exceeded its file count limit.")
+            for info in sorted(members,key=lambda member:member.filename):
+                name=info.filename.rstrip("/")
+                relative_path(name)
+                if name in seen or len(name.encode("utf-8"))>1024 or stat.S_ISLNK(info.external_attr>>16) or ".git" in PurePosixPath(name).parts:
+                    raise Fault("easy_install_unsafe", "A base package contains unsafe or duplicate paths.")
+                seen.add(name)
+                target=inside(destination,name)
+                if info.is_dir(): target.mkdir(parents=True,exist_ok=True); continue
+                total+=info.file_size
+                if info.file_size>64*1024*1024 or total>256*1024*1024:
+                    raise Fault("easy_install_unsafe", "A base package exceeded its extracted size limit.")
+                target.parent.mkdir(parents=True,exist_ok=True)
+                with archive.open(info) as incoming,target.open("xb") as outgoing:
+                    shutil.copyfileobj(incoming,outgoing,1024*1024)
+            if not (destination/"__init__.py").is_file(): raise Fault("easy_install_unsafe", "A base package has no ComfyUI node entry point.")
+    except Fault: raise
+    except (ValueError,zipfile.BadZipFile,RuntimeError): raise Fault("easy_install_unsafe", "A reviewed base package archive could not be safely extracted.") from None
+    files=sorted(name for name in seen if (destination/name).is_file())
+    atomic_bytes(destination/".tracking","\n".join(files).encode())
+    return {name:digest(destination/name) for name in [*files,".tracking"]}
+
+
+def verify_cnr_metadata(target, package):
+    try:
+        from packaging.version import Version
+        metadata=tomllib.loads((target/"pyproject.toml").read_text(encoding="utf-8"))["project"]
+        normal=lambda name: str(name).lower().replace("_","-")
+        return normal(metadata["name"])==normal(package["id"]) and Version(str(metadata["version"]))==Version(package["version"])
+    except (OSError,ValueError,KeyError,TypeError): return False
+
+
+def verify_easy_packages(root):
+    receipts=read_json(Path(root)/"locks/easy-install-packages.json",{})
+    if not isinstance(receipts,dict): raise Fault("node_state_unknown", "The reviewed base-package receipt is invalid.")
+    for package in MANIFEST.get("packages",[]):
+        if package.get("status","enabled") != "enabled": continue
+        target=package_folder(root,package)
+        receipt=receipts.get(package["id"],{})
+        if receipt.get("pin") != package: raise Fault("base_node_changed", "A base custom-node pin differs from its verified installation receipt.")
+        if package["source"] == "git":
+            if not git_identity(target,package): raise Fault("base_node_changed", "A Git base node changed from its reviewed repository or commit.")
+        else:
+            if not verify_cnr_metadata(target,package) or not receipt.get("files"): raise Fault("base_node_changed", "A Registry base-node identity or version changed.")
+            for name,checksum in receipt["files"].items():
+                file=inside(target,name)
+                if file.is_symlink() or not file.is_file() or digest(file)!=checksum: raise Fault("base_node_changed", "A Registry base-node source file changed or is missing.")
+
+
+def install_easy_packages(paths, catalog):
+    receipts=read_json(paths.root/"locks/easy-install-packages.json",{})
+    required=[]
+    for package in MANIFEST.get("packages",[]):
+        if not isinstance(package,dict) or not isinstance(package.get("requirements"),list): raise Fault("unlocked_dependency", "Each base package requires a reviewed dependency list.")
+        if package.get("status","enabled") != "enabled": continue
+        target=package_folder(paths.root,package)
+        origin=catalog.get(package["folder"])
+        if not origin or origin.removesuffix(".git") != package["repository"].removesuffix(".git"):
+            raise Fault("unlocked_dependency", "A base package is outside the pinned Easy Install node catalog.")
+        if package.get("source") not in {"git","cnr"}: raise Fault("unlocked_dependency", "A base package requires an explicit Git or Registry source pin.")
+        if target.exists():
+            receipt=receipts.get(package["id"],{})
+            if receipt.get("pin")!=package: raise Fault("base_node_conflict", "A different node already occupies a protected base folder; no files were replaced.")
+        else:
+            target.parent.mkdir(parents=True,exist_ok=True)
+            with tempfile.TemporaryDirectory(prefix="base-node-",dir=paths.root) as temporary:
+                stage=Path(temporary)/"package"
+                if package["source"] == "git":
+                    if not re.fullmatch(r"[0-9a-f]{40}",str(package.get("revision",""))): raise Fault("unlocked_dependency", "A Git base node requires its exact commit pin.")
+                    run(["git","init",str(stage)])
+                    run(["git","-C",str(stage),"remote","add","origin",package["repository"]])
+                    run(["git","-C",str(stage),"fetch","--depth","1","origin",package["revision"]])
+                    run(["git","-C",str(stage),"checkout","--detach","FETCH_HEAD"])
+                    if not git_identity(stage,package): raise Fault("base_node_changed", "A Git base-node checkout failed repository/commit verification.")
+                    files={}
+                else:
+                    artifact=package["artifact"]
+                    payload=download_reviewed(artifact["url"],artifact["sha256"],64*1024*1024)
+                    stage.mkdir()
+                    files=extract_easy_package(payload,stage)
+                    if not verify_cnr_metadata(stage,package): raise Fault("base_node_changed", "A Registry base-node archive differs from its pinned package/version.")
+                stage.rename(target)
+                receipts[package["id"]]={"pin":package,"files":files}
+                atomic_json(paths.root/"locks/easy-install-packages.json",receipts)
+        required.extend(package["requirements"])
+    verify_easy_packages(paths.root)
+    return required
+
+
+def protected_requirements(lines, protected):
+    from packaging.requirements import Requirement
+    from packaging.version import Version
+    result=[]
+    for line in lines:
+        if not isinstance(line,str): raise Fault("unlocked_dependency", "Reviewed dependency requirements must be plain package constraints.")
+        line=line.strip()
+        if not line or line.startswith("#"): continue
+        try: requirement=Requirement(line)
+        except Exception: raise Fault("unlocked_dependency", "A base dependency contains an unreviewed directive or installer URL.") from None
+        if requirement.url is not None: raise Fault("unlocked_dependency", "Base dependencies must resolve only to hash-locked PyPI wheels.")
+        if requirement.marker is not None and not requirement.marker.evaluate(): continue
+        name=requirement.name.lower().replace("_","-")
+        if name in {"torch","torchvision","torchaudio","triton"} or name.startswith("nvidia-"):
+            if name not in protected or not requirement.specifier.contains(Version(protected[name]),prereleases=True):
+                raise Fault("torch_changed", "A reviewed base node requires a different Colab CUDA package; no package was replaced.")
+            continue
+        result.append(line)
+    return sorted(set(result))
+
+
+def runtime_constraints(component):
+    # The node cohort shares ComfyUI's environment; MCP has an independent dependency graph.
+    if component != "venv": return []
+    from packaging.requirements import Requirement
+    from packaging.utils import canonicalize_name
+    from packaging.version import Version
+    pins={}
+    for text in MANIFEST["easy_install"]["resolved_constraints"]:
+        try:
+            item=Requirement(text); name=canonicalize_name(item.name); specs=list(item.specifier)
+            if item.url or item.marker or item.extras or len(specs)!=1 or specs[0].operator!="==" or "*" in specs[0].version: raise ValueError()
+            version=str(Version(specs[0].version))
+        except Exception: raise Fault("unlocked_dependency", "The reviewed non-CUDA snapshot requires exact plain version pins.") from None
+        if name in {"torch","torchvision","torchaudio","triton"} or name.startswith("nvidia-"):
+            raise Fault("torch_changed", "A non-CUDA dependency snapshot attempted to pin Colab CUDA packages; installation was blocked.")
+        if name in pins and pins[name]!=version:
+            raise Fault("unlocked_dependency", "The reviewed dependency snapshot contains conflicting versions.")
+        pins[name]=version
+    return [name+"=="+version for name,version in sorted(pins.items())]
 
 
 def command_stage(command):
@@ -76,6 +364,10 @@ def validate_runtime(root):
     for saved, original in (("__init__.py", "admission.py"), ("gate.py", "gate.py")):
         if not (guard / saved).is_file() or (guard / saved).read_bytes() != Path(__file__).with_name(original).read_bytes():
             raise Fault("guard_missing", "Runtime admission protection is missing or changed; preservation and startup were blocked.")
+    if __package__: from .model_bridge import validate_model_bridge
+    else: from model_bridge import validate_model_bridge
+    validate_model_bridge(root)
+    verify_easy_packages(root)
     code = """import json,importlib.metadata as m,pathlib,sys
 import torch,aiohttp,yaml,safetensors
 from transformers import CLIPTokenizer,CLIPTextModel
@@ -111,8 +403,8 @@ def install_locked(paths, component, requirements, protected):
     locks = paths.root / "locks"; locks.mkdir(exist_ok=True)
     requested = locks / (component + "-requirements.in")
     requested.write_text(requirements, encoding="utf-8")
-    constraint = locks / "colab-constraints.txt"
-    constraint.write_text("\n".join(name + "==" + version for name, version in protected.items()) + "\n", encoding="utf-8")
+    constraint = locks / (component+"-constraints.txt")
+    constraint.write_text("\n".join(sorted([name+"=="+version for name,version in protected.items()]+runtime_constraints(component)))+"\n", encoding="utf-8")
     atomic_json(locks / "protected-packages.json", protected)
     lock = locks / (component + ".lock")
     if not lock.exists():
@@ -122,7 +414,8 @@ def install_locked(paths, component, requirements, protected):
         lines = []
         for package in report["install"]:
             name = package["metadata"]["name"].lower().replace("_", "-")
-            if name in protected: raise Fault("torch_changed", "The resolver requested a replacement of Colab CUDA packages; startup was blocked.")
+            if name in protected or name in {"torch","torchvision","torchaudio","triton"} or name.startswith("nvidia-"):
+                raise Fault("torch_changed", "The resolver requested a replacement or addition of Colab CUDA packages; startup was blocked.")
             info = package["download_info"]; parts = urlsplit(info["url"])
             sha = info.get("archive_info", {}).get("hashes", {}).get("sha256")
             if parts.scheme != "https" or parts.hostname != "files.pythonhosted.org" or parts.username or parts.password or not sha:
@@ -168,7 +461,10 @@ def prepare(paths, config):
         guard = paths.comfy / "custom_nodes/easy_runtime_guard/__init__.py"
         if not guard.is_file() or guard.read_bytes() != Path(__file__).with_name("admission.py").read_bytes(): raise Fault("guard_missing", "Runtime admission protection is missing or changed; startup was blocked.")
         if not guard.with_name("gate.py").is_file() or guard.with_name("gate.py").read_bytes() != Path(__file__).with_name("gate.py").read_bytes(): raise Fault("guard_missing", "Runtime admission policy is missing or changed; startup was blocked.")
-        validate_runtime(paths.root); return {"installed": True, "restored": False}
+        validate_runtime(paths.root)
+        source,catalog=easy_install_sources(paths)
+        templates=install_easy_templates(paths,source["helper"])
+        return {"installed": True, "restored": False, "easy_install":{"revision":MANIFEST["easy_install"]["revision"],"templates":templates}}
     restored = artifacts.restore(paths, validate=validate_runtime)
     if not restored:
         if paths.comfy.exists():
@@ -179,22 +475,28 @@ def prepare(paths, config):
             run(["git", "-C", str(paths.comfy), "remote", "add", "origin", MANIFEST["core"]["repository"]])
             run(["git", "-C", str(paths.comfy), "fetch", "--depth", "1", "origin", MANIFEST["core"]["revision"]])
             run(["git", "-C", str(paths.comfy), "checkout", "--detach", "FETCH_HEAD"])
+        source,catalog=easy_install_sources(paths)
+        node_requirements=install_easy_packages(paths,catalog)
         protected = {d.metadata["Name"].lower().replace("_", "-"): d.version for d in importlib.metadata.distributions() if d.metadata["Name"].lower().replace("_", "-") in {"torch", "torchvision", "torchaudio", "triton"} or d.metadata["Name"].lower().startswith("nvidia-")}
         requirements = (paths.comfy / "requirements.txt").read_text()
-        required = [line for line in requirements.splitlines() if line.strip() and not line.startswith("#") and line.split("==")[0] not in {"torch", "torchvision", "torchaudio"}]
-        required += ["comfyui-manager==" + MANIFEST["manager"], "uv==" + MANIFEST["resolver"]]
+        required = protected_requirements(requirements.splitlines()+node_requirements+MANIFEST["easy_install"]["requirements"]+
+                    ["comfyui-frontend-package=="+MANIFEST["frontend"],"comfyui-manager=="+MANIFEST["manager"],"uv=="+MANIFEST["resolver"]],protected)
         install_locked(paths, "venv", "\n".join(required) + "\n", protected)
         install_locked(paths, "mcp-venv", "comfy-mcp==" + MANIFEST["mcp"] + "\ncomfy-cli==" + MANIFEST["comfy_cli"] + "\n", protected)
         node = paths.comfy / "custom_nodes/easy_runtime_guard"; node.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(Path(__file__).with_name("admission.py"), node / "__init__.py")
         shutil.copyfile(Path(__file__).with_name("gate.py"), node / "gate.py")
+        install_model_bridge(paths)
         validate_runtime(paths.root)
     node = paths.comfy / "custom_nodes/easy_runtime_guard"; node.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(Path(__file__).with_name("admission.py"), node / "__init__.py")
     shutil.copyfile(Path(__file__).with_name("gate.py"), node / "gate.py")
+    install_model_bridge(paths)
+    source,catalog=easy_install_sources(paths)
+    templates=install_easy_templates(paths,source["helper"])
     atomic_json(paths.state / "installed.json", {"recipe": artifacts.recipe(), "base": artifacts.compatibility()})
     model_paths(paths)
-    return {"installed": True, "restored": restored, "mode": "comfy", "recovery": read_json(paths.state / "runtime-restored.json", None) if restored else None}
+    return {"installed": True, "restored": restored, "mode": "comfy", "easy_install":{"revision":MANIFEST["easy_install"]["revision"],"templates":templates,"packages":[{"id":p["id"],"source":p["source"],"status":p.get("status","enabled"),"version":p.get("version"),"revision":p.get("revision"),"reason":p.get("reason"),"limitations":p.get("limitations",[])} for p in MANIFEST["packages"]]}, "recovery": read_json(paths.state / "runtime-restored.json", None) if restored else None}
 
 
 def owned_process(paths, name):

@@ -77,7 +77,7 @@ def download_payload(params):
 
 
 def packages(items):
-    return [{**item, "version": item.get("version", item.get("ver")), "installed": True, "protected": item.get("id") in {"core", "frontend", "manager", "mcp"}} for item in items]
+    return [{**item, "version": item.get("version", item.get("ver")), "installed": True, "protected": bool(item.get("protected")) or item.get("id") in {"core", "frontend", "manager", "mcp"}} for item in items]
 
 
 def page_query(params):
@@ -169,6 +169,8 @@ class Controller:
         self.closed = threading.Event()
         self.transport = self.colab = self.companion = None
         self.remote_snapshot = {}
+        manifest = json.loads((resources() / "remote/runtime.json").read_text(encoding="utf-8"))
+        self.pending_base = [item.get("folder", item["id"]) for item in manifest.get("packages", []) if item.get("status", "enabled") != "enabled"]
         self.output_delivery = None
         self.session = self.store.get("active_session") or self.idle()
         if self.session["state"] != "idle":
@@ -222,7 +224,7 @@ class Controller:
                 "output_delivery": public(self.output_delivery),
                 "downloads_total": self.remote_snapshot.get("downloads", {}).get("total") if isinstance(self.remote_snapshot.get("downloads"), dict) else None,
                 "packages_total": self.remote_snapshot.get("packages_total"),
-                "capabilities": {"native": True, "legacy_import": True, "google_oauth_configured": Path(os.environ.get("EASY_COMFY_OAUTH_CLIENT", ".private/oauth-client.json")).is_file(), "owned_remote_connected": self.companion is not None, "version": "0.1.0-dev"}}
+                "capabilities": {"native": True, "legacy_import": True, "google_oauth_configured": Path(os.environ.get("EASY_COMFY_OAUTH_CLIENT", ".private/oauth-client.json")).is_file(), "owned_remote_connected": self.companion is not None, "version": "0.1.1-dev", "pending_base_packages": self.pending_base}}
 
     def account_id(self, params):
         account_id = params.get("account_id") or self.store.get("selected_account_id")
@@ -326,6 +328,7 @@ class Controller:
         while True:
             try:
                 self.companion.health()
+                self.push_model_credentials()
                 return
             except AppError:
                 raise
@@ -334,6 +337,13 @@ class Controller:
                     raise AppError("readiness_timeout", "Owned companion did not become ready. The VM remains active.") from None
                 self.cancelled.wait(1)
                 self.check_cancel()
+
+    def model_credentials(self):
+        return {key: self.store.secret(self.session["account_id"], provider) or "" for provider, key in (("Hugging Face", "huggingface"), ("Civitai", "civitai"))}
+
+    def push_model_credentials(self):
+        # This authenticated request stays outside the browser and JSONL events.
+        return self.companion.call("/credentials/models", {"tokens": self.model_credentials()})
 
     def ready(self, result):
         import requests
@@ -676,7 +686,7 @@ class Controller:
         if action == "history.export":
             return {"schema_version": 1, "exported_at": time.time(), **self.store.history_page(0, 2000, p.get("account_id"), p.get("session_id"), p.get("operation"), export=True)}
         if action == "app.diagnostics":
-            return {"version": "0.1.0-dev", "session": self.public_session(), "capabilities": self.snapshot()["capabilities"], "metrics": public(self.remote_snapshot.get("metrics")), "history": self.store.history()}
+            return {"version": "0.1.1-dev", "session": self.public_session(), "capabilities": self.snapshot()["capabilities"], "metrics": public(self.remote_snapshot.get("metrics")), "history": self.store.history()}
         if action == "account.importLegacy":
             from controller.import_legacy import import_legacy
             if p.get("confirmed") is not True:
@@ -712,11 +722,15 @@ class Controller:
                 raise AppError("native_secret_required", "Enter service credentials in the native protected dialog.")
             if p.get("remove"):
                 self.store.secret(account_id, provider, delete=True)
+                if self.companion and account_id == self.session.get("account_id"):
+                    self.push_model_credentials()
                 return {"provider": provider, "configured": False}
             token = secret_prompt(provider, self.store.get("preferences", PREFERENCES).get("language", "pt-BR"))
             if not token or len(token) > 1024 or "\r" in token or "\n" in token:
                 raise AppError("credential_invalid", "Enter a valid service credential.")
             self.store.secret(account_id, provider, token)
+            if self.companion and account_id == self.session.get("account_id"):
+                self.push_model_credentials()
             return {"provider": provider, "configured": True}
         if action == "session.start":
             return self.start(p)
@@ -791,13 +805,13 @@ class Controller:
             return remote.call("/nodes/versions" + page_query(p) + "&" + urlencode({"id": node_id}))
         if action == "download.add":
             payload = download_payload(p)
-            payload["tokens"] = {key: self.store.secret(self.session["account_id"], provider) or "" for provider, key in (("Hugging Face", "huggingface"), ("Civitai", "civitai"))}
+            payload["tokens"] = self.model_credentials()
             return remote.call("/downloads", payload)
         if action in ("download.cancel", "download.resume"):
             job_id = p.get("job_id")
             if not isinstance(job_id, str) or not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", job_id):
                 raise AppError("download_missing", "Select a download first.")
-            provider_tokens = {key: self.store.secret(self.session["account_id"], provider) or "" for provider, key in (("Hugging Face", "huggingface"), ("Civitai", "civitai"))}
+            provider_tokens = self.model_credentials()
             return remote.call(f"/downloads/{job_id}/" + action.split(".")[1], {"tokens": provider_tokens} if action.endswith("resume") else {})
         if action in ("cache.prepare", "cache.cancel", "cache.clear"):
             return remote.call("/cache/" + action.split(".")[1], p)

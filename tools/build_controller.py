@@ -19,6 +19,8 @@ def resources(destination: Path):
     for source in (ROOT / "remote").iterdir():
         if source.is_file() and (source.suffix in {".py", ".json"} or source.name == "THIRD_PARTY_NOTICES.md"):
             shutil.copy2(source, remote / source.name)
+    (remote / "web").mkdir(parents=True, exist_ok=True)
+    shutil.copy2(ROOT / "remote/web/remote_download.js", remote / "web/remote_download.js")
     vendor = destination / "controller" / "vendor"
     vendor.mkdir(parents=True, exist_ok=True)
     for name in ("manifest.json", "NOTICE", "LICENSE.google-colab-cli"):

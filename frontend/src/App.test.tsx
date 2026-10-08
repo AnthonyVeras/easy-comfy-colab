@@ -22,6 +22,17 @@ function connectedSnapshot(): Snapshot {
   return snapshot;
 }
 describe('shared desktop interface', () => {
+  it('identifies deferred base packages without claiming they are installed', async () => {
+    const snapshot = connectedSnapshot();
+    snapshot.capabilities.pending_base_packages = ['ComfyUI-RMBG', 'comfyui_controlnet_aux'];
+    native(snapshot);
+    render(<App />);
+    await waitFor(() => expect(screen.queryByText('Carregando…')).toBeNull());
+    fireEvent.click(screen.getByRole('button', { name: 'Nodes e pacotes' }));
+    expect(screen.getByRole('heading', { name: 'Pacotes pendentes de compatibilidade' })).toBeTruthy();
+    expect(screen.getByText('ComfyUI-RMBG, comfyui_controlnet_aux')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Remover ComfyUI-RMBG' })).toBeNull();
+  });
   it('identifies offline preview without inventing account or usage measurements', async () => {
     render(<App />);
     await waitFor(() => expect(screen.queryByText('Carregando…')).toBeNull());

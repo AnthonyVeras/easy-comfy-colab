@@ -208,10 +208,10 @@ class Transport:
 
     def upload_remote(self, directory):
         directory = Path(directory)
-        if not (directory / "bootstrap.py").is_file() or not (directory / "runtime.json").is_file():
+        if any(not (directory / name).is_file() for name in ("bootstrap.py", "runtime.json", "web/remote_download.js")):
             raise AppError("runtime_resources_missing", "The app's reviewed runtime resources are missing. Reinstall before starting.")
         self.mkdir(REMOTE + "/remote")
-        sources = list(directory.rglob("*.py")) + [directory / "runtime.json"]
+        sources = list(directory.rglob("*.py")) + [directory / "runtime.json", directory / "web/remote_download.js"]
         for source in sorted(sources):
             if "tests" in source.parts or "__pycache__" in source.parts:
                 continue

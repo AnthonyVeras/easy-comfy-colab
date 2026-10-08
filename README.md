@@ -13,6 +13,7 @@ python -m unittest discover -s controller/tests -v
 python -m unittest discover -s remote/tests -v
 npm run typecheck
 npm test
+npm run models:test
 npm run build
 ```
 
@@ -28,6 +29,12 @@ The controller binds each Google identity to its exact allocation and authentica
 
 One active session, multiple accounts. Drive/PC output destinations, CPU download sessions, resumable downloads, categorized library, node packages, workflow checks, model cache, Drive copy/sharing, monitoring, history and conservative idle protection form the V1 checklist. Telegram and Huihui are outside V1.
 
-See `docs/CONTRACT.md`, `docs/ROADMAP.md`, `docs/STATUS.md` and `docs/BENCHMARK.md`. The 0.1.0 local preview uses Tauri after both wrappers passed the agreed desktop budgets. Public release and clean-Windows certification remain pending. The detailed development vault uses a separate MCPVault connection; see `tools/vault.py`. No automation or external calendar is created.
+See `docs/CONTRACT.md`, `docs/ROADMAP.md`, `docs/STATUS.md` and `docs/BENCHMARK.md`. The local preview uses Tauri after both 0.1.0 wrappers passed the agreed desktop budgets. Version 0.1.1 adds the VM download bridge and an Easy Install base. Public release and clean-Windows certification remain pending. The detailed development vault uses a separate MCPVault connection; see `tools/vault.py`. No automation or external calendar is created.
+
+## ComfyUI downloads and base
+
+ComfyUI's **Download** and **Download All** missing-model buttons queue work on the owned VM. They use the same resumable HF/Civitai queue as the app, preserving model categories in the new Drive library. A ComfyUI extension shows remote progress and refreshes loader choices after completion. A disconnected or rejected request shows recovery; it never falls back to saving the weights on Windows. Provider credentials remain outside the browser.
+
+The runtime uses the reviewed [ComfyUI-Easy-Install MAC-Linux base](https://github.com/Tavris1/ComfyUI-Easy-Install/tree/fa3882893d083dc116ec0c62b9fdcd4ebc91397e): versioned node packages and shipped workflow examples, with the Colab Python/Torch/CUDA stack preserved. The desktop installer script is inspected rather than executed wholesale. `remote/runtime.json` records exact package sources, versions, hashes and compatibility limits. Pending packages are identified in the app; source-only dependencies need a separately tested Linux build before activation. This change creates a new artifact recipe and preserves earlier Drive artifacts.
 
 New code is MIT; third-party code and dependencies retain their own licenses. A public release needs the project's Google OAuth configuration and applicable verification. GitHub publication is a separate step.

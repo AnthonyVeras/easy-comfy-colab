@@ -39,9 +39,10 @@ def recipe():
     home = Path(__file__).parent
     manifest = read_json(home / "runtime.json")
     # The companion is uploaded fresh; only installation inputs and installed guard affect the archive.
-    inputs = {key: manifest[key] for key in ("install_revision", "core", "frontend", "manager", "mcp", "comfy_cli", "resolver", "packages")}
+    inputs = {key: manifest[key] for key in ("install_revision", "core", "frontend", "manager", "mcp", "comfy_cli", "resolver", "packages", "easy_install")}
     inputs["artifact_schema"] = 2
     inputs["guard"] = {name: digest(home / name) for name in ("admission.py", "gate.py")}
+    inputs["model_bridge"] = {name: digest(home / name) for name in ("model_bridge.py", "model_node.py", "web/remote_download.js")}
     return hashlib.sha256(json.dumps(inputs, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
@@ -205,9 +206,9 @@ def restore_candidate(paths, selected, validate, pointer, previous_error):
             raise Fault("artifact_corrupt", "The runtime archive could not be extracted; preserve it and try a verified last-good artifact.") from None
         # A detached checkout can have an empty refs directory. Files-only archives omit it,
         # but Git still requires refs/ and objects/ to recognize the extracted repository.
-        git = stage / "ComfyUI/.git"
-        if (git / "HEAD").is_file():
-            for name in ("refs", "objects"): (git / name).mkdir(exist_ok=True)
+        for git in stage.rglob(".git"):
+            if git.is_dir() and (git / "HEAD").is_file():
+                for name in ("refs", "objects"): (git / name).mkdir(exist_ok=True)
         for component in ("venv", "mcp-venv"):
             binary = stage / component / "bin/python"
             binary.parent.mkdir(parents=True, exist_ok=True)

@@ -40,6 +40,7 @@ def page(query):
 
 
 def body_limit(route):
+    if route in {"/credentials/models", "/comfy/downloads"}: return 16*1024
     return 16*1024*1024 if route in {"/workflows/check", "/workflows/import", "/outputs/ack"} else 1024*1024
 
 
@@ -75,6 +76,7 @@ class Service:
         self.cache = Cache(self.paths, self.idle)
         self.cache.reconcile()
         self.downloads = Downloads(self.paths, self.cache.invalidate)
+        self.model_credentials = {}
         self.nodes = Nodes(self.paths, MANIFEST["manager"], call=self.manager_call, idle=self.idle)
         self.legacy = Legacy(self.paths, self.cache.invalidate)
         self.mutation = threading.Lock()
@@ -133,6 +135,7 @@ class Service:
         packages = [{"id": "core", "version": MANIFEST["core"]["revision"]}, {"id": "frontend", "version": MANIFEST["frontend"]}, {"id": "manager", "version": MANIFEST["manager"]}, {"id": "mcp", "version": MANIFEST["mcp"]}] if not self.cpu else []
         node_state = read_json(self.paths.state / "nodes.json", {})
         packages.extend({"id": key, "version": value.get("ver"), "enabled": value.get("enabled")} for key, value in list(node_state.items())[:100])
+        packages = [{**item, "protected": self.protected_node(item["id"])} for item in packages]
         with self.catalog_lock:
             if self.catalog is None or time.monotonic()-self.catalog_at > 30:
                 self.catalog = self.library(); self.catalog_at = time.monotonic()
@@ -192,8 +195,13 @@ class Service:
             self.require_idle()
             if self.cpu: return {"verified": True, "changed": False, "manifest": {"mode": "downloads", "runtime_required": False}}
             from_state = self.nodes.list()
-            if any(key != "easy_runtime_guard" and not re.fullmatch(r"\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?", str(value.get("ver", ""))) for key, value in from_state.items()):
-                raise Fault("node_unpinned", "An installed node has no reproducible registry version. Resolve its version before preserving the runtime.")
+            for node_id, item in from_state.items():
+                if node_id in {"easy_runtime_guard", "easy_model_download"} or isinstance(item, dict) and re.fullmatch(r"\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?", str(item.get("ver", ""))):
+                    continue
+                if __package__: from .bootstrap import verify_easy_node
+                else: from bootstrap import verify_easy_node
+                if not verify_easy_node(self.paths.root, node_id, item):
+                    raise Fault("node_unpinned", "An installed node has no reproducible registry version or verified base Git pin. Resolve its version before preserving the runtime.")
             if __package__: from .common import atomic_json
             else: from common import atomic_json
             atomic_json(self.paths.state / "nodes.json", from_state)
@@ -265,8 +273,43 @@ class Service:
             if not kind or (kind not in info and kind in {"Reroute", "PrimitiveNode"}): unresolved.append({"node": node.get("id", position), "reason": "dynamic_node"})
         return {"valid": not missing_nodes and not missing_models and not unresolved, "missing_nodes": sorted(missing_nodes), "missing_models": sorted(missing_models), "unresolved": unresolved, "scope": "static node and exact ComfyUI input-choice availability; execution validates graph behavior", "identity": public_identity(self.config), "relative_path": selected}
 
+    def update_model_credentials(self, data):
+        tokens = data.get("tokens")
+        if set(data) != {"tokens"} or not isinstance(tokens, dict) or any(key not in {"huggingface", "civitai"} or not isinstance(value, str) or len(value) > 4096 or any(ord(c) < 32 for c in value) for key, value in tokens.items()):
+            raise Fault("invalid_credentials", "Select valid service credentials.")
+        self.model_credentials = dict(tokens)
+        return {"updated": True}
+
+    def comfy_download(self, data):
+        if not {"url", "name", "directory"} <= set(data) or set(data) - {"url", "name", "directory", "sha256"}:
+            raise Fault("invalid_download", "Select a model URL, filename and category.")
+        for key, limit in (("url", 4096), ("name", 255), ("directory", 64)):
+            value = data[key]
+            if not isinstance(value, str) or not value or len(value.encode("utf-8")) > limit or any(ord(c) < 32 for c in value):
+                raise Fault("invalid_download", "Select a bounded model URL, filename and category.")
+        category = "llm_gguf" if data["directory"] == "LLM" else data["directory"]
+        entry = {"url": data["url"], "filename": data["name"]}
+        if "sha256" in data: entry["sha256"] = data["sha256"]
+        result = self.downloads.add({"urls": [entry], "category": category, "tokens": dict(self.model_credentials)})
+        return {"job_id": result["ids"][0]}
+
+    def comfy_download_status(self, job_id):
+        with self.downloads.lock:
+            job = next((value for value in self.downloads.jobs if value["id"] == job_id), None)
+            if job is None: raise Fault("download_missing", "This download is no longer in the queue.")
+            # Only progress is exposed to ComfyUI; no origins, auth or internal identity.
+            return {key: job.get(key) for key in ("id", "filename", "category", "status", "bytes", "total", "sha256", "error", "created_at")}
+
+    def protected_node(self, node_id):
+        identifiers = {"core", "frontend", "manager", "mcp", "easy_runtime_guard", "easy_model_download"}
+        for item in MANIFEST.get("packages", []):
+            identifiers.update(value.casefold() for value in (item.get("id"), item.get("folder"), *item.get("aliases", [])) if isinstance(value, str))
+        return isinstance(node_id, str) and node_id.casefold() in identifiers
+
     def route(self, method, route, query, data):
         if method == "GET":
+            match = re.fullmatch(r"/comfy/downloads/([a-f0-9]{32})", route)
+            if match: return self.comfy_download_status(match[1])
             offset, limit = page(query)
             if route == "/health": return self.health()
             if route == "/snapshot": return self.snapshot()
@@ -276,17 +319,21 @@ class Service:
             if route == "/legacy/files": return self.legacy.list(query.get("kind", [None])[0], query.get("category", [None])[0], offset, limit)
             if route in {"/nodes/catalog", "/nodes/versions"}:
                 if self.cpu: raise Fault("gpu_required", "Start a GPU session to discover compatible custom nodes.")
-                if route == "/nodes/catalog": return self.nodes.registry.catalog(query.get("query", [""])[0], offset, limit, self.nodes.list())
+                if route == "/nodes/catalog":
+                    report = self.nodes.registry.catalog(query.get("query", [""])[0], offset, limit, self.nodes.list())
+                    report["items"] = [{**item, "protected": self.protected_node(item.get("id"))} for item in report["items"]]
+                    return report
                 self.nodes.verify_manager()
                 return self.nodes.registry.versions(query.get("id", [None])[0], offset, limit)
             if route == "/nodes":
                 if self.cpu: raise Fault("gpu_required", "Start a GPU session to manage custom nodes.")
                 values = self.nodes.list(); keys = sorted(values)
-                return {"items": [dict(values[k], id=k) for k in keys[offset:offset+limit]], "total": len(keys), "offset": offset, "limit": limit}
+                return {"items": [dict(values[k], id=k, protected=self.protected_node(k)) for k in keys[offset:offset+limit]], "total": len(keys), "offset": offset, "limit": limit}
             raise Fault("endpoint_missing", "Unknown companion endpoint.")
         if not self.mutation.acquire(blocking=False): raise Fault("runtime_busy", "Another runtime change is in progress; refresh before retrying.")
         was_paused = (self.paths.state / "stopping").exists()
         try:
+            if route == "/credentials/models": return self.update_model_credentials(data)
             if route == "/outputs/resume": return self.outputs.resume()
             if route == "/outputs/switch": return self.switch_outputs(data)
             if route == "/outputs/delivery":
@@ -307,6 +354,7 @@ class Service:
                 self.require_idle()
                 with self.outputs.barrier(): return {"paused": True, "safe_to_restart": True}
             if was_paused: raise Fault("session_paused", "Resume this session before adding downloads, cache work or node changes.")
+            if route == "/comfy/downloads": return self.comfy_download(data)
             if route == "/legacy/import":
                 self.require_idle()
                 result = self.legacy.import_file(data)
@@ -320,6 +368,8 @@ class Service:
             if route == "/cache/clear": return self.cache.clear()
             match = re.fullmatch(r"/nodes/(install|update|remove)", route)
             if match:
+                if self.protected_node(data.get("id")):
+                    raise Fault("protected_package", "Base packages are pinned to the app runtime. They cannot be changed as custom nodes.")
                 if self.cpu: raise Fault("gpu_required", "Start a GPU session to manage custom nodes.")
                 self.require_idle()
                 try:

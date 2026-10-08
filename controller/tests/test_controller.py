@@ -461,6 +461,8 @@ class RemoteBoundaryTests(unittest.TestCase):
             root = Path(temporary)
             (root / "bootstrap.py").write_text("pass")
             (root / "runtime.json").write_text("{}")
+            (root / "web").mkdir()
+            (root / "web/remote_download.js").write_text("// reviewed VM bridge")
             (root / "secret.json").write_text("synthetic")
             (root / "tests").mkdir()
             (root / "tests/test_ignore.py").write_text("pass")
@@ -469,7 +471,7 @@ class RemoteBoundaryTests(unittest.TestCase):
             transport.sftp = Mock()
             transport.upload_remote(root)
             targets = [call.args[1] for call in transport.sftp.put.call_args_list]
-            self.assertEqual(targets, ["/content/easy-comfy-colab-2/remote/bootstrap.py", "/content/easy-comfy-colab-2/remote/runtime.json"])
+            self.assertEqual(targets, ["/content/easy-comfy-colab-2/remote/bootstrap.py", "/content/easy-comfy-colab-2/remote/runtime.json", "/content/easy-comfy-colab-2/remote/web/remote_download.js"])
 
     def test_colab_recovery_uses_exact_notebook_get_never_allocate_post(self):
         from controller.google import Colab

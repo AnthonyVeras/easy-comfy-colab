@@ -283,15 +283,31 @@ class ArtifactTests(Temporary):
         git(self.paths.comfy, "update-ref", "-d", "refs/heads/main")
         (self.paths.comfy/".git/config").write_text("[core]\nrepositoryformatversion=0\nfilemode=false\nbare=false\nlogallrefupdates=true\n", encoding="utf-8")
         self.assertFalse(any((self.paths.comfy/".git/refs").rglob("*.*")))
+        nested = self.paths.comfy/"custom_nodes/pinned-git-node"
+        nested.mkdir(parents=True)
+        (nested/"__init__.py").write_text("NODE_CLASS_MAPPINGS={}")
+        git(nested,"init")
+        git(nested,"add","__init__.py")
+        git(nested,"-c","user.name=Runtime test","-c","user.email=runtime-test@example.invalid","commit","-m","node fixture")
+        node_revision = git(nested,"rev-parse","HEAD")
+        git(nested,"checkout","--detach",node_revision)
+        git(nested,"update-ref","-d","refs/heads/master")
+        git(nested,"update-ref","-d","refs/heads/main")
+        (nested/".git/config").write_text("[core]\nrepositoryformatversion=0\nfilemode=false\nbare=false\n",encoding="utf-8")
         saved = artifacts.save(self.paths)
         with tarfile.open(self.paths.artifacts/saved["manifest"]["archive"]) as archive:
             self.assertFalse(any(name.startswith("ComfyUI/.git/refs/") for name in archive.getnames()))
+            self.assertFalse(any(name.startswith("ComfyUI/custom_nodes/pinned-git-node/.git/refs/") for name in archive.getnames()))
         for file in self.paths.comfy.rglob("*"):
             if file.is_file(): file.chmod(0o600)
         self.remove_install()
+        def validate(stage):
+            self.assertEqual(git(stage/"ComfyUI", "rev-parse", "HEAD"), expected)
+            self.assertEqual(git(stage/"ComfyUI/custom_nodes/pinned-git-node", "rev-parse", "HEAD"), node_revision)
         with patch.object(Path, "symlink_to", self.fake_link):
-            self.assertTrue(artifacts.restore(self.paths, lambda stage: self.assertEqual(git(stage/"ComfyUI", "rev-parse", "HEAD"), expected)))
+            self.assertTrue(artifacts.restore(self.paths, validate))
         self.assertEqual(git(self.paths.comfy, "rev-parse", "HEAD"), expected)
+        self.assertEqual(git(nested,"rev-parse","HEAD"),node_revision)
 
     def test_dependency_models_source_survives_archive_and_restore(self):
         self.fixture()
@@ -347,6 +363,9 @@ class ArtifactTests(Temporary):
         atomic_json(home/"runtime.json",manifest)
         for name in ("admission.py", "gate.py", "companion.py", "downloads.py", "bootstrap.py"):
             (home/name).write_text("original",encoding="utf-8")
+        (home/"web").mkdir()
+        for name in ("model_bridge.py","model_node.py","web/remote_download.js"):
+            (home/name).write_text("original",encoding="utf-8")
         with patch("remote.artifacts.__file__",str(home/"artifacts.py")):
             first = artifacts.recipe()
             for name in ("companion.py", "downloads.py", "bootstrap.py"):
@@ -357,6 +376,15 @@ class ArtifactTests(Temporary):
             self.assertNotEqual(artifacts.recipe(),first)
             manifest["install_revision"] -= 1; atomic_json(home/"runtime.json",manifest)
             (home/"gate.py").write_text("new admission policy",encoding="utf-8")
+            self.assertNotEqual(artifacts.recipe(),first)
+            (home/"gate.py").write_text("original",encoding="utf-8")
+            (home/"web/remote_download.js").write_text("new bridge behavior",encoding="utf-8")
+            self.assertNotEqual(artifacts.recipe(),first)
+            (home/"web/remote_download.js").write_text("original",encoding="utf-8")
+            manifest["easy_install"]=dict(manifest["easy_install"],revision="a"*40); atomic_json(home/"runtime.json",manifest)
+            self.assertNotEqual(artifacts.recipe(),first)
+            manifest["easy_install"]=dict(bootstrap.MANIFEST["easy_install"])
+            manifest["packages"]=[{"id":"reviewed-base","revision":"b"*40}]; atomic_json(home/"runtime.json",manifest)
             self.assertNotEqual(artifacts.recipe(),first)
 
     def test_corrupt_selected_archive_restores_last_good_and_promotes_after_validation(self):
