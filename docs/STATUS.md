@@ -1,0 +1,24 @@
+# Implementation status
+
+Updated 2026-10-08. This file records evidence, not estimates or simulated success.
+
+| Cycle | Status | Evidence / remaining gate |
+| --- | --- | --- |
+| 0 | Complete | New local Git repository, dedicated MCP registered, 19 initial notes written/read back; existing Obsidian connection preserved |
+| 1 | In progress | Two real Colab accounts and primary HF/Civitai tokens imported with all seven source hashes unchanged; both native Colab identity/consumption API probes passed. CPU VM proved native SSH/SFTP/tunnels, Drive mount, same-allocation reconnect and safe shutdown. Independent Drive API grants expired and need renewed authorization |
+| 2 | Local preview delivered | Shared dark PT-BR/EN UI and generated logo integrated; 27 UI/i18n tests and three bridge tests pass. Both release wrappers passed the local budgets; Tauri chosen by the agreed <10% memory rule, installed outside the checkout and opened with private account data. Desktop shortcut created. See BENCHMARK.md; accessibility/human review remains a V1 gate |
+| 3 | In progress | Clean T4 proved official MCP, validated SD1.5 generation, verified PNG delivery to Windows, artifact publication by checksum and safe shutdown. First fresh restore failed at 136.86s because the archive omitted empty Git refs. Review also found dependency code omitted by a broad models exclusion. Recipe schema 2 repairs both and rejects the previous partial archive, without deleting it. Exact incomplete allocation safely stopped in 27.57s. Live creation/restore of the corrected artifact and three fresh starts <=180s remain gates |
+| 4–5 | In progress | Models/downloads, Registry/node versions, workflow diagnostics/library, cache, paged activity/monitoring, history export and explicit legacy library import implemented. Same-VM output switching, continuous PC delivery and strict failures on uncertain output reads covered locally. Advanced remote journeys and atomic Drive/FUSE publication remain acceptance gates |
+| 6 | Pending | Clean Windows install, Narrator, live 180s runs, public OAuth verification and installer audit |
+
+Legacy findings and approved decisions are retained in the private project vault. No old VM, old runtime image, Telegram or Huihui is part of the new base.
+
+All failed starts and human authorization waits remain part of the evidence. The initial T4 installation failed at 212.02 seconds; recovery of that same VM reached readiness in 170.75 seconds. This is not the three-fresh-VM performance acceptance. Imported accounts are private application data protected by DPAPI, not source or installer resources.
+
+Final local verification: 104 controller tests and two real local HTTP integration checks passed; runtime ran 104 tests (101 passed, three Windows symlink skips); 27 UI/i18n tests, three bridge tests and six tooling tests passed. Python compilation, TypeScript and Cargo checks passed. The packaged sidecar reached its first snapshot in 0.720 seconds; it also ran outside the checkout with no external Python on PATH (2.626 seconds during concurrent packaging). Sidecar timings are not interactive app opening or clean-Windows certification.
+
+The production npm dependency audit reports no known advisories. Eight moderate advisories remain in build-only transitive dependencies, tracked as a release gate. Local installers do not establish public OAuth readiness or license review completion.
+
+The installed 0.1.0 preview uses the user's separate application data and starts idle, without allocating a VM. Tauri measured 2.636 seconds opening, 207.652 MiB peak private memory and 0.116% mean machine CPU; Electron measured 1.123 seconds, 216.512 MiB and 0.041%. Both used isolated empty data and the whole process tree. Personal account data was checked only after measurement. Both installers are unsigned.
+
+The user subsequently limited work to actions without monetary cost. No additional cloud allocations or paid services will run under that instruction. All project allocations are safely closed; remote acceptance resumes only after authorization. Local builds, resource measurements, a desktop shortcut and opening the app remain authorized.

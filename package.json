@@ -1,0 +1,73 @@
+{
+  "name": "easy-comfy-colab-2",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Native Windows controller and shared desktop interface for ComfyUI on Colab",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "preview": "vite preview --host 127.0.0.1",
+    "electron:dev": "electron electron/main.cjs",
+    "electron:build": "npm run build && electron-builder --win dir",
+    "electron:installer": "npm run build && electron-builder --win nsis",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "node electron/stage-sidecar.mjs && tauri build",
+    "tauri:check": "cargo check --manifest-path src-tauri/Cargo.toml",
+    "bridge:test": "node --test electron/policy.test.cjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.12.1",
+    "@tauri-apps/plugin-dialog": "2.8.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.7",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3",
+    "jsdom": "29.1.1",
+    "typescript": "7.0.2",
+    "vite": "8.3.3",
+    "vitest": "4.1.11"
+  },
+  "build": {
+    "appId": "org.easycomfy.colab2.electron",
+    "productName": "Easy Comfy Colab 2 Electron",
+    "directories": {
+      "output": "dist/electron"
+    },
+    "files": [
+      "dist/frontend/**/*",
+      "electron/main.cjs",
+      "electron/preload.cjs",
+      "electron/policy.cjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/controller",
+        "to": "controller",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "icon": "src-tauri/icons/icon.ico",
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

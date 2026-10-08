@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/googlecolab/google-colab-cli",
+  "revision": "930275e62970df10055f411c8e28ca61755dcfc7",
+  "sha256": {
+    "client.py": "af6cb28c96ac9dc3d1d1a0a7587ad87acc8e0eed36b63de301ce4b9f026755b1",
+    "consumption.py": "b6e936db0ddd6e4c31ef7b516c456be7549c34394a70a3d1356b679ec168a594",
+    "runtime.py": "e95adf8dc98c9a08dce1fff035839863cbe80c9571d36634c3bc3d0cfcf06bcb",
+    "utils.py": "09e164e731e19353b735e40074e072a4f5711d8736d50c2087066857b450c857"
+  }
+}

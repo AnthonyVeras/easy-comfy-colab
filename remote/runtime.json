@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "install_revision": 2,
+  "core": {"repository": "https://github.com/Comfy-Org/ComfyUI.git", "revision": "d91ed5f5b7fa60fa18464c2ad7c80254da2f0f29"},
+  "frontend": "1.55.14",
+  "manager": "4.2.2",
+  "mcp": "0.10.0",
+  "comfy_cli": "1.22.0",
+  "resolver": "0.12.23",
+  "packages": [],
+  "ports": {"comfy": 8188, "companion": 8190, "mcp": 8189}
+}

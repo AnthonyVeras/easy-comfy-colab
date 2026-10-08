@@ -1,0 +1,9 @@
+Google Colab CLI portable modules
+Copyright Google LLC; Apache License 2.0.
+Source: https://github.com/googlecolab/google-colab-cli
+Revision: 930275e62970df10055f411c8e28ca61755dcfc7
+Files copied without changes.
+
+The controller's Drive propagation hook adapts the licensed upstream
+src/colab_cli/commands/automation.py flow from the same pinned revision.
+The local adaptation uses explicit per-account sessions and native cancellation.
