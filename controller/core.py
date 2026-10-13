@@ -262,7 +262,7 @@ class Controller:
             self.usage_cache[account_id] = {"subject": account["subject"], "at": time.monotonic(), "data": data}
             try:
                 from controller.google import Colab
-                colab = self.colab if self.colab and self.session.get("account_id") == account_id else (self.colab_factory or Colab)(self.google(), account_id, self.emit)
+                colab = self.colab if self.colab and getattr(self.colab, "account_id", None) == account_id else (self.colab_factory or Colab)(self.google(), account_id, self.emit)
                 usage = colab.client.get_consumption_user_info()
                 balance, rate = usage.paid_compute_units_balance, usage.consumption_rate_hourly
                 if any(type(value) not in (int, float) or not math.isfinite(value) or value < 0 for value in (balance, rate)):

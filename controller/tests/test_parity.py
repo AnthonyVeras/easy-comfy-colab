@@ -283,6 +283,7 @@ class HistoryAndDelegationTests(unittest.TestCase):
             self.controller.companion = Mock()
             self.controller.companion.call.return_value = {"metrics": {"ram_used": 999}}
             self.controller.colab = Mock()
+            self.controller.colab.account_id = self.account
             self.controller.last_balance = 0
             def switch_account():
                 self.controller.session["session_id"] = "new-session"

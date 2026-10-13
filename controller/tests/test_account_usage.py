@@ -88,3 +88,11 @@ class AccountUsageTests(TemporaryStore):
             result = self.controller.read_usage(other)
         self.assertEqual(result["account_id"], other)
         self.assertEqual(result["status"], "ready")
+
+    def test_startup_transition_never_reads_old_client_for_new_account(self):
+        self.controller.session["account_id"] = self.account_id
+        previous = Mock(account_id="previous-account")
+        previous.client.get_consumption_user_info.return_value = SimpleNamespace(paid_compute_units_balance=999, consumption_rate_hourly=9)
+        self.controller.colab = previous
+        self.assertEqual(self.read()["result"]["balance"], 0)
+        previous.client.get_consumption_user_info.assert_not_called()
