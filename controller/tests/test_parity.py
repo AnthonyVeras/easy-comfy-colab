@@ -274,9 +274,11 @@ class HistoryAndDelegationTests(unittest.TestCase):
             if self.controller.operation.locked(): self.controller.operation.release()
 
     def test_slow_usage_result_and_failure_cannot_overwrite_new_account_stats(self):
+        self.store.bind(self.account, {"sub": "usage-subject", "email": "usage@example.invalid", "email_verified": True})
         events = []
         self.controller.send = lambda event, data: events.append((event, data))
         for fail in (False, True):
+            self.controller.usage_cache.clear()
             self.controller.session.update(state="ready", account_id=self.account, session_id="old-session", hardware=None)
             self.controller.companion = Mock()
             self.controller.companion.call.return_value = {"metrics": {"ram_used": 999}}

@@ -2,6 +2,7 @@ import type { Language } from './types';
 
 // Codes are the public error contract. Server text remains available in technical details.
 const groups: [string, string, string][] = [
+  ['balance_unavailable', 'Não foi possível consultar os CUs desta conta. Confira a conexão; se persistir, reconecte a conta em Contas.', 'Could not read this account’s CUs. Check your connection; if it persists, reconnect the account in Accounts.'],
   ['account_missing account_not_connected', 'Escolha e conecte uma conta Google na aba Contas.', 'Choose and connect a Google account in Accounts.'],
   ['account_duplicate', 'Esta conta já foi adicionada. Selecione o perfil existente.', 'This account was already added. Select its existing profile.'],
   ['account_mismatch identity_unverified', 'A identidade Google não foi confirmada para este perfil. Confira a conta no navegador e reconecte.', 'Google identity was not confirmed for this profile. Check the browser account and reconnect.'],

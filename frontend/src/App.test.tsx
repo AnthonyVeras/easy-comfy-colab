@@ -22,6 +22,45 @@ function connectedSnapshot(): Snapshot {
   return snapshot;
 }
 describe('shared desktop interface', () => {
+  it('reads account CUs before a VM exists and refreshes on demand', async () => {
+    const snapshot = connectedSnapshot();
+    snapshot.session = emptySnapshot().session;
+    const transport = native(snapshot, action => action === 'account.usage' ? { account_id: 'a', balance: 42.5, rate: 0, status: 'ready', checked_at: Date.now() / 1000, error_code: null } : {});
+    render(<App />);
+    await screen.findByText('42,5 CU');
+    expect(screen.getByText('0 CU/h')).toBeTruthy();
+    expect(transport.request).toHaveBeenCalledWith('account.usage', { account_id: 'a', force: false });
+    fireEvent.click(screen.getByRole('button', { name: 'Atualizar' }));
+    await waitFor(() => expect(transport.request).toHaveBeenCalledWith('account.usage', { account_id: 'a', force: true }));
+    expect(transport.request.mock.calls.some(([action]) => action === 'session.start')).toBe(false);
+  });
+  it('discards late balance replies from the previously selected account', async () => {
+    const snapshot = connectedSnapshot();
+    snapshot.session = emptySnapshot().session;
+    snapshot.accounts.push({ ...snapshot.accounts[0], id: 'b', label: 'Account B' });
+    let finishA!: (value: unknown) => void;
+    native(snapshot, (action, params) => {
+      if (action === 'account.select') { snapshot.selected_account_id = 'b'; return {}; }
+      if (action === 'account.usage' && params?.account_id === 'a') return new Promise(resolve => { finishA = resolve; });
+      if (action === 'account.usage') return { account_id: 'b', balance: 0, rate: 0, status: 'ready', checked_at: 1, error_code: null };
+      return {};
+    });
+    render(<App />);
+    await waitFor(() => expect(finishA).toBeTypeOf('function'));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Conta da sessão' }), { target: { value: 'b' } });
+    await screen.findByText('0 CU');
+    await act(async () => finishA({ account_id: 'a', balance: 999, rate: 10, status: 'ready', checked_at: 1, error_code: null }));
+    expect(screen.queryByText('999 CU')).toBeNull();
+    expect(screen.getByText('0 CU')).toBeTruthy();
+  });
+  it('offers a clear retry when the pre-session balance cannot be read', async () => {
+    const snapshot = connectedSnapshot();
+    snapshot.session = emptySnapshot().session;
+    native(snapshot, () => ({ account_id: 'a', balance: null, rate: null, status: 'error', checked_at: 1, error_code: 'balance_unavailable' }));
+    render(<App />);
+    await screen.findByText(/Use Atualizar para tentar novamente/);
+    expect(screen.queryByText('0 CU')).toBeNull();
+  });
   it('identifies deferred base packages without claiming they are installed', async () => {
     const snapshot = connectedSnapshot();
     snapshot.capabilities.pending_base_packages = ['ComfyUI-RMBG', 'comfyui_controlnet_aux'];

@@ -7,6 +7,7 @@ test('allows only reviewed Google authorization origins', () => {
 });
 test('rejects arbitrary IPC commands and non-object/oversized parameters', () => {
   validateRequest('session.start', { account_id: 'owned' });
+  validateRequest('account.usage', { account_id: 'owned', force: true });
   validateRequest('history.export', { account_id: 'owned' });
   validateRequest('legacy.list', { kind: 'model', category: 'checkpoints', offset: 0, limit: 25 });
   validateRequest('legacy.import', { kind: 'workflow', relative_path: 'example.json', destination_name: 'copied.json' });

@@ -24,6 +24,8 @@ Easy Install is assembled from a pinned MAC-Linux source catalog, verified Regis
 
 ## Parity additions
 
+- `account.usage`: reads the selected/explicit account's Colab consumption API without allocating, recovering or mounting a VM. `{account_id,force?}` returns `{account_id,balance,rate,status,checked_at,error_code}`. A per-account, subject-bound memory cache lasts 60 seconds; force bypasses it. Errors clear the previous reading, expose a classified code and never become zero. Snapshots include `account_usage` and merge only the selected account's balance/rate into metrics. The renderer queries after the first local snapshot, on account changes and regular refresh; manual Refresh forces a query. Late replies cannot update another account's display. Benchmark mode blocks cloud usage reads.
+
 - `download.list`, `workflow.list`, `node.catalog`, `node.versions`: bounded pages with offset/limit/total; catalog query and registered node/version identifiers validated. Saved workflow checks accept only relative JSON paths within the new Drive workflow directory. Validation evidence belongs to the selected account, session and file.
 - `history.export`: all retained receipts up to 2,000, using the same filters as `history.list`. Native wrappers show a JSON save dialog; cancellation is reported without a successful save. Credentials and raw operation parameters are excluded.
 - `legacy.list`, `legacy.import`: explicitly selected model/category or JSON workflow from fixed legacy Drive library roots of the active account. One file is copied into the new library after integrity checks; originals and the old image are untouched. Conflicting destinations require another name. Imports require the owned account's Drive-mounted CPU/GPU session.

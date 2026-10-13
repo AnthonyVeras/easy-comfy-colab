@@ -178,6 +178,8 @@ class Controller:
         self.started = time.monotonic()
         self.idle_since = None
         self.last_balance = 0
+        self.usage_cache = {}
+        self.usage_locks = {}
         self.local_monitor = LocalMonitor()
         self.benchmark = os.environ.get("ECC_BENCHMARK") == "1"
 
@@ -211,6 +213,7 @@ class Controller:
         return result
 
     def snapshot(self):
+        usage = self.cached_usage(self.store.get("selected_account_id"))
         downloads = self.remote_snapshot.get("downloads", [])
         if isinstance(downloads, dict):
             downloads = downloads.get("items", [])
@@ -218,18 +221,63 @@ class Controller:
                 "session": self.public_session(), "downloads": public([{**item, "name": item.get("name", item.get("filename", item.get("id")))} for item in downloads]),
                 "models": public(self.remote_snapshot.get("models", {}).get("items", []) if isinstance(self.remote_snapshot.get("models"), dict) else self.remote_snapshot.get("models", [])), "packages": public(packages(self.remote_snapshot.get("packages", []))),
                 "history": self.store.history(), "preferences": self.store.get("preferences", PREFERENCES),
-                "metrics": public(self.remote_snapshot.get("metrics")),
+                "account_usage": usage,
+                "metrics": public({**(self.remote_snapshot.get("metrics") or {}), "balance": usage["balance"], "rate": usage["rate"]}),
                 "local_metrics": self.local_monitor.sample(), "cache": public(self.remote_snapshot.get("cache", {"status": "unknown", "busy": None, "items": [], "error": None})),
                 "runtime": public(self.remote_snapshot.get("runtime")),
                 "output_delivery": public(self.output_delivery),
                 "downloads_total": self.remote_snapshot.get("downloads", {}).get("total") if isinstance(self.remote_snapshot.get("downloads"), dict) else None,
                 "packages_total": self.remote_snapshot.get("packages_total"),
-                "capabilities": {"native": True, "legacy_import": True, "google_oauth_configured": Path(os.environ.get("EASY_COMFY_OAUTH_CLIENT", ".private/oauth-client.json")).is_file(), "owned_remote_connected": self.companion is not None, "version": "0.1.1-dev", "pending_base_packages": self.pending_base}}
+                "capabilities": {"native": True, "legacy_import": True, "google_oauth_configured": Path(os.environ.get("EASY_COMFY_OAUTH_CLIENT", ".private/oauth-client.json")).is_file(), "owned_remote_connected": self.companion is not None, "version": "0.1.2-dev", "pending_base_packages": self.pending_base}}
 
     def account_id(self, params):
         account_id = params.get("account_id") or self.store.get("selected_account_id")
         self.store.account(account_id)
         return account_id
+
+    def cached_usage(self, account_id):
+        empty = {"account_id": account_id, "balance": None, "rate": None, "status": "idle", "checked_at": None, "error_code": None}
+        try:
+            account = self.store.account(account_id)
+        except AppError:
+            return empty
+        if not account["connected"]:
+            return empty
+        saved = self.usage_cache.get(account_id)
+        return dict(saved["data"]) if saved and saved["subject"] == account["subject"] else empty
+
+    def read_usage(self, account_id, force=False):
+        """Read account CUs only; never assign or recover a runtime."""
+        account = self.store.account(account_id)
+        if self.benchmark or not account["connected"]:
+            return self.cached_usage(account_id)
+        lock = self.usage_locks.setdefault(account_id, threading.Lock())
+        if not lock.acquire(blocking=False):
+            return self.cached_usage(account_id)
+        try:
+            cached = self.usage_cache.get(account_id)
+            if not force and cached and cached["subject"] == account["subject"] and time.monotonic() - cached["at"] < 60:
+                return dict(cached["data"])
+            data = {"account_id": account_id, "balance": None, "rate": None, "status": "loading", "checked_at": None, "error_code": None}
+            self.usage_cache[account_id] = {"subject": account["subject"], "at": time.monotonic(), "data": data}
+            try:
+                from controller.google import Colab
+                colab = self.colab if self.colab and self.session.get("account_id") == account_id else (self.colab_factory or Colab)(self.google(), account_id, self.emit)
+                usage = colab.client.get_consumption_user_info()
+                balance, rate = usage.paid_compute_units_balance, usage.consumption_rate_hourly
+                if any(type(value) not in (int, float) or not math.isfinite(value) or value < 0 for value in (balance, rate)):
+                    raise ValueError("Invalid consumption response")
+                data = {**data, "balance": balance, "rate": rate, "status": "ready"}
+            except Exception as error:
+                code = error.code if isinstance(error, AppError) and error.code in {"account_mismatch", "identity_unverified", "account_not_connected", "credential_format", "credential_type"} else "balance_unavailable"
+                data = {**data, "status": "error", "error_code": code}
+            if self.closed.is_set() or self.store.account(account_id)["subject"] != account["subject"]:
+                return self.cached_usage(account_id)
+            data["checked_at"] = time.time()
+            self.usage_cache[account_id] = {"subject": account["subject"], "at": time.monotonic(), "data": data}
+            return dict(data)
+        finally:
+            lock.release()
 
     def require_remote(self):
         if not self.companion or not self.transport or not self.session.get("endpoint"):
@@ -662,6 +710,8 @@ class Controller:
             raise AppError("benchmark_readonly", "Benchmark mode only permits local snapshots, preferences, history and diagnostics.")
         if action == "app.snapshot":
             return self.snapshot()
+        if action == "account.usage":
+            return self.read_usage(self.account_id(params), force=params.get("force") is True)
         if action in {"history.list", "history.export"}:
             return self.mutate(action, params)
         if action == "session.cancel":
@@ -686,7 +736,7 @@ class Controller:
         if action == "history.export":
             return {"schema_version": 1, "exported_at": time.time(), **self.store.history_page(0, 2000, p.get("account_id"), p.get("session_id"), p.get("operation"), export=True)}
         if action == "app.diagnostics":
-            return {"version": "0.1.1-dev", "session": self.public_session(), "capabilities": self.snapshot()["capabilities"], "metrics": public(self.remote_snapshot.get("metrics")), "history": self.store.history()}
+            return {"version": "0.1.2-dev", "session": self.public_session(), "capabilities": self.snapshot()["capabilities"], "metrics": public(self.remote_snapshot.get("metrics")), "history": self.store.history()}
         if action == "account.importLegacy":
             from controller.import_legacy import import_legacy
             if p.get("confirmed") is not True:
@@ -711,6 +761,8 @@ class Controller:
                 self.store.set("selected_account_id", account_id)
             elif action == "account.remove":
                 self.store.remove(account_id)
+                self.usage_cache.pop(account_id, None)
+                self.usage_locks.pop(account_id, None)
             else:
                 self.store.update(account_id, **{k: p[k] for k in ("label", "gpu", "output_mode") if k in p})
             return {"accounts": self.store.accounts(), "selected_account_id": self.store.get("selected_account_id")}
@@ -918,9 +970,9 @@ class Controller:
             if colab and time.monotonic() - last_balance >= 60:
                 last_balance = time.monotonic()
                 try:
-                    usage = colab.client.get_consumption_user_info()
-                    account_metrics = {"balance": usage.paid_compute_units_balance, "rate": usage.consumption_rate_hourly}
-                    balance_alert = usage.paid_compute_units_balance < self.store.get("preferences", PREFERENCES).get("balance_alert", 20)
+                    usage = self.read_usage(identity[0])
+                    account_metrics = {key: usage[key] for key in ("balance", "rate")}
+                    balance_alert = usage["balance"] is not None and usage["balance"] < self.store.get("preferences", PREFERENCES).get("balance_alert", 20)
                 except Exception:
                     account_metrics = {"balance": None, "rate": None}
                 if not current() or self.operation.locked():

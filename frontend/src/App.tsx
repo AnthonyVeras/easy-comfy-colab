@@ -6,7 +6,7 @@ import { translate } from './i18n';
 import brandLogo from '../brand/logo-v1.png';
 import LegacyLibrary from './LegacyLibrary';
 import type { CopyKey } from './i18n';
-import type { ControllerEvent, Download, DriveWorkflow, HistoryEntry, Language, Metrics, Model, NodePackage, NodeVersion, Paged, Params, Snapshot } from './types';
+import type { AccountUsage, ControllerEvent, Download, DriveWorkflow, HistoryEntry, Language, Metrics, Model, NodePackage, NodeVersion, Paged, Params, Snapshot } from './types';
 
 const pages = ['session', 'models', 'nodes', 'workflows', 'accounts', 'activity', 'settings'] as const;
 type Page = typeof pages[number];
@@ -118,6 +118,7 @@ export default function App() {
   const [autoOpen, setAutoOpen] = useState(true);
   const mounted = useRef(true);
   const refreshActive = useRef(false);
+  const usagePending = useRef(new Set<string>());
   const inFlight = useRef(new Set<string>());
   const preferencesLoaded = useRef(false);
   const historyRequested = useRef(false);
@@ -172,6 +173,16 @@ export default function App() {
       const snapshot = normalizeSnapshot(await bridge().request<Snapshot>('app.snapshot'));
       if (!mounted.current) return;
       setData(snapshot);
+      const selected = snapshot.accounts.find(item => item.id === snapshot.selected_account_id);
+      if (selected?.connected && !usagePending.current.has(selected.id)) {
+        const accountId = selected.id;
+        usagePending.current.add(accountId);
+        void bridge().request<AccountUsage>('account.usage', { account_id: accountId, force: manual }).then(usage => {
+          if (mounted.current && usage.account_id === accountId) setData(old => old.selected_account_id === accountId ? { ...old, account_usage: usage, metrics: { ...old.metrics, balance: usage.balance, rate: usage.rate } } : old);
+        }).catch(error => {
+          if (mounted.current) setData(old => old.selected_account_id === accountId ? { ...old, metrics: { ...old.metrics, balance: null, rate: null }, account_usage: { account_id: accountId, balance: null, rate: null, status: 'error', checked_at: null, error_code: errorCode(error) ?? 'balance_unavailable' } } : old);
+        }).finally(() => usagePending.current.delete(accountId));
+      }
       const paging = pageState.current;
       if (paging.page === 'models' && paging.downloadOffset != null && snapshot.session.state === 'ready' && inFlight.current.size === 0) {
         try {
@@ -313,7 +324,7 @@ export default function App() {
   const intro: Record<Page, CopyKey> = { session: 'sessionIntro', models: 'modelsIntro', nodes: 'nodesIntro', workflows: 'workflowsIntro', accounts: 'accountsIntro', activity: 'activityIntro', settings: 'settingsIntro' };
   const stateLabel = pages.includes(session.state as Page) ? t('unknown') : (['idle', 'authorizing', 'allocating', 'preparing', 'starting', 'ready', 'reconnecting', 'stopping', 'error'].includes(session.state) ? (ready && !comfyReady ? t('downloadsReady') : t(session.state as CopyKey)) : t('unknown'));
   const authAccount = data.accounts.find(item => item.id === auth?.account_id);
-  const metric = (key: 'balance' | 'rate', suffix = '') => data.metrics[key] == null ? '—' : `${data.metrics[key]}${suffix}`;
+  const metric = (key: 'balance' | 'rate', suffix = '') => data.metrics[key] == null ? '—' : `${data.metrics[key].toLocaleString(language, { maximumFractionDigits: 2 })}${suffix}`;
   const hardware = typeof session.hardware === 'string' ? session.hardware : '—';
   const selectedNode = installedNodes.find(item => item.id === nodeId.trim()) ?? nodePackages.find(item => item.id === nodeId.trim());
   const selectedVersion = nodeVersions?.id === nodeId ? nodeVersions.items.find(item => item.version === nodeVersion) : undefined;
@@ -343,7 +354,8 @@ export default function App() {
           {sessionBusy ? <p className="supporting">{t('cancelSafe')}</p> : null}
           {hasSession && session.output_mode === 'pc' && data.output_delivery?.status === 'error' ? <section className="notice notice-error" role="alert"><div><strong>{t('deliveryError')}</strong><p>{errorText(language, data.output_delivery.error_code ?? 'output_delivery_failed')}</p><p>{t('deliveryRetryHint')}</p><p>{t('pending')}: {session.pending_outputs == null ? '—' : session.pending_outputs}</p></div><div className="actions"><button disabled={locked || refreshing} onClick={() => void refresh(true)}>{t('refresh')}</button>{!ready ? <button disabled={locked || sessionBusy} onClick={() => void run('session.reconnect')}>{t('reconnect')}</button> : null}</div></section> : null}
           {hasSession && session.output_mode === 'pc' && data.output_delivery?.status === 'complete' ? <p className="supporting" role="status">{t('deliveryVerified')}{data.output_delivery.last_delivery_at ? ` · ${new Date(data.output_delivery.last_delivery_at * 1000).toLocaleString(language)}` : ''} · {t('pending')}: {session.pending_outputs == null ? '—' : session.pending_outputs}</p> : null}
-          {account ? <><div className="metric-grid">{[['balance', t('balance'), metric('balance', ' CU')], ['rate', t('rate'), metric('rate', ' CU/h')], ['hardware', t('gpu'), hardware], ['outputs', t('pending'), session.pending_outputs == null ? '—' : String(session.pending_outputs)]].map(([key, label, value]) => <div className="metric" key={key}><span>{label}</span><strong>{value}</strong>{value === '—' ? <small>{t('noMetric')}</small> : null}</div>)}</div>
+          {account ? <><div className="metric-grid">{[['balance', t('balance'), metric('balance', ' CU')], ['rate', t('rate'), metric('rate', ' CU/h')], ['hardware', t('gpu'), hardware], ['outputs', t('pending'), session.pending_outputs == null ? '—' : String(session.pending_outputs)]].map(([key, label, value]) => <div className="metric" key={key}><span>{label}</span><strong>{value}</strong>{value === '—' ? <small>{t((key === 'balance' || key === 'rate') && account.connected && ['idle', 'loading'].includes(data.account_usage?.status ?? 'idle') ? 'readingBalance' : 'noMetric')}</small> : null}</div>)}</div>
+          {data.account_usage?.status === 'error' ? <p role="alert">{errorText(language, data.account_usage.error_code ?? 'balance_unavailable')} {t('balanceRetry')}</p> : null}
           <div className="two-columns"><Card title={t('hardware')}><Field label={t('hardware')}><select value={account?.gpu ?? 'T4'} disabled={!account || locked || hasSession} onChange={event => updateAccount({ gpu: event.target.value })}>{gpuChoices.map(gpu => <option key={gpu}>{gpu}</option>)}</select></Field><p className="supporting">{t('gpuHint')}</p></Card><Card title={t('output')}><Field label={t('output')}><select value={outputChoice} disabled={!account || locked || (hasSession && !comfyReady)} onChange={event => { const value = event.target.value; setOutputChoice(value); if (!hasSession) updateAccount({ output_mode: value }); }}><option value="drive">{t('drive')}</option><option value="pc">{t('pc')}</option></select></Field><p className="supporting">{t(outputChoice === 'pc' ? 'pcHint' : 'driveHint')}</p>{hasSession ? <p>{t('activeDestination')}: <strong>{session.output_mode ? t(session.output_mode === 'pc' ? 'pc' : 'drive') : t('unknown')}</strong><br /><small>{t(comfyReady ? 'nextDestinationLive' : 'nextDestination')}</small></p> : null}{comfyReady && outputChoice !== session.output_mode ? <button className="primary" disabled={locked} onClick={() => confirm('session.restart', { output_mode: outputChoice }, 'changeOutputTitle', 'changeOutputHint', 'applyOutput')}>{t('applyOutput')}</button> : null}</Card></div></> : null}
           {hasSession ? <details className="advanced"><summary>{t('maintenance')}</summary><p>{t('maintenanceHint')}</p><div className="actions"><button disabled={!comfyReady || locked} onClick={() => void run('session.restart')}>{t('restart')}</button><button disabled={!comfyReady || locked} onClick={() => void run('session.freeMemory')}>{t('freeMemory')}</button><button disabled={!ready || locked} onClick={() => void run('session.runtimeSave')}>{t('preserveRuntime')}</button></div></details> : null}
         </div>

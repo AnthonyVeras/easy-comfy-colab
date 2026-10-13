@@ -1,6 +1,6 @@
 {
   "name": "easy-comfy-colab-2",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Native Windows controller and shared desktop interface for ComfyUI on Colab",
   "type": "module",
