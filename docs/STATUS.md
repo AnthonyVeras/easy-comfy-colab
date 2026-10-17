@@ -2,6 +2,8 @@
 
 Updated 2026-10-08. This file records evidence, not estimates or simulated success.
 
+2026-10-17: the user designated this rebuild as the primary project and authorized commit/push to `AnthonyVeras/easy-comfy-colab:main`. The previous application is preserved on `legacy` and tag `v2.0.7` (`cd065a5`). Git ancestry is retained through a merge with the previous main; the root tree is this rebuild. Publishing source does not establish the pending public installer/OAuth/runtime acceptance gates.
+
 2026-10-13 / preview 0.1.2: account CUs are now queried independently of the VM, after opening, switching accounts and Refresh. The account/subject-bound memory cache lasts 60 seconds; manual Refresh bypasses it. Late responses cannot replace another account's balance, zero remains a real value and failures clear old values with an actionable message. Two existing Google accounts returned live balances/rates successfully without any VM allocation. Local verification passed 119 controller tests, 31 UI/i18n tests, three IPC tests, seven tooling tests and TypeScript. Packaging and installed-window verification are recorded in the private handoff.
 
 Preview 0.1.1 adds a ComfyUI frontend bridge: both missing-model download actions submit to the owned VM queue, never a browser file download. HF/Civitai credentials remain in the controller and companion memory. The new recipe derives a pinned base from Tavris1/ComfyUI-Easy-Install: 20 enabled packages (Aux has documented limits), ten safe workflow templates and three visibly pending packages (RMBG, Easy SAM3, Qwen3 TTS). Its 150 non-CUDA constraints resolved 169 Linux dependency metadata records; Colab CUDA packages remain reserved. This is local/source verification, not a successful full VM installation.

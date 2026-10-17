@@ -2,6 +2,8 @@
 
 This is the new community project. The legacy checkout is a read-only reference. Never adopt, restart, stop, or modify a legacy VM or runtime image.
 
+This checkout is the primary project on `AnthonyVeras/easy-comfy-colab`, branch `main`. The previous application is preserved on branch `legacy` and tag `v2.0.7`. Do not synchronize this rebuild into the legacy branch.
+
 - Windows native controller; no WSL in normal operation. One active session and one controller per Windows user.
 - Bind Google subject, account, allocation endpoint and transport. Never infer ownership from GPU, HTTP port, or a baseline difference.
 - Never stop a VM while output delivery or required runtime preservation is unverified. Unknown ownership/state preserves the VM and reports recovery.
