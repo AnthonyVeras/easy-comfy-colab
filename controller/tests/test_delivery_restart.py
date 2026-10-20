@@ -185,7 +185,7 @@ class OutputLifecycleTests(unittest.TestCase):
         self.colab.stop.assert_not_called()
 
     def snapshot(self, queue=None):
-        return {"queue": {"running": 0, "pending": 0} if queue is None else queue, "downloads": {"busy": False, "items": []}, "cache": {"busy": False}, "pending_outputs": 1}
+        return {"queue": {"running": 0, "pending": 0} if queue is None else queue, "downloads": {"busy": False, "items": []}, "cache": {"busy": False}, "training": {"busy": False, "preserved": True}, "pending_outputs": 1}
 
     def live(self):
         return {**self.manifest, "delivery": True, "output_mode": "pc", "paused": False}

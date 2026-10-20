@@ -65,8 +65,8 @@ async function createWindow() {
     try {
       validateRequest(action, params);
       if (action === 'shell.pickFile') {
-        if (params.kind !== 'workflow') return failure('invalid_file_kind', 'Select a workflow JSON file.');
-        const result = await dialog.showOpenDialog(window, { properties: ['openFile'], filters: [{ name: 'ComfyUI workflow', extensions: ['json'] }] });
+        if (!['workflow', 'training-dataset'].includes(params.kind)) return failure('invalid_file_kind', 'Select a workflow JSON or training ZIP.');
+        const result = await dialog.showOpenDialog(window, { properties: ['openFile'], filters: params.kind === 'training-dataset' ? [{ name: 'Training dataset', extensions: ['zip'] }] : [{ name: 'ComfyUI workflow', extensions: ['json'] }] });
         return { ok: true, result: result.canceled ? null : result.filePaths[0] };
       }
       if (action === 'shell.openExternal') { await shell.openExternal(authorizationURL(params.url)); return { ok: true, result: {} }; }
@@ -78,7 +78,7 @@ async function createWindow() {
       if (!controller || controller.exitCode !== null || controller.killed) return failure('controller_unavailable', 'The native controller is unavailable. Reopen the app.');
       const id = randomUUID();
       return await new Promise(resolve => {
-        const timeout = setTimeout(() => { pending.delete(id); resolve(failure('request_timeout', 'Check Activity and reconnect; the operation did not reply.')); }, action === 'legacy.import' ? 1_260_000 : 600_000);
+        const timeout = setTimeout(() => { pending.delete(id); resolve(failure('request_timeout', 'Check Activity and reconnect; the operation did not reply.')); }, ['legacy.import', 'training.import'].includes(action) ? 1_260_000 : 600_000);
         pending.set(id, { resolve, timeout, action });
         controller.stdin.write(JSON.stringify({ id, action, params }) + '\n', error => { if (error) { clearTimeout(timeout); pending.delete(id); resolve(failure('controller_unavailable', 'Reopen the app to reconnect the controller.')); } });
       });

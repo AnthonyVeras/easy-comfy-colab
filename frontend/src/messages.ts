@@ -2,6 +2,12 @@ import type { Language } from './types';
 
 // Codes are the public error contract. Server text remains available in technical details.
 const groups: [string, string, string][] = [
+  ['training_busy training_owner', 'O treino ainda está ativo ou seu estado não foi confirmado. Aguarde a parada, reconecte se necessário e verifique os resultados no Drive. A VM permanece ligada.', 'Training is active or its state is unknown. Wait for it to stop, reconnect if needed and verify Drive results. The VM stays running.'],
+  ['training_dataset', 'Confira o ZIP, as legendas UTF-8 e o trigger em cada legenda. Envie o dataset ao Drive e prepare novamente.', 'Check the ZIP, UTF-8 captions and trigger in every caption. Upload the dataset to Drive and prepare again.'],
+  ['training_settings training_project', 'Confira os parâmetros e selecione ou prepare um projeto válido no Drive da conta conectada.', 'Check the settings and select or prepare a valid project on the connected account’s Drive.'],
+  ['training_not_prepared', 'Prepare este projeto na VM atual antes de iniciar ou retomar.', 'Prepare this project on the current VM before starting or resuming.'],
+  ['training_exists training_checkpoint', 'Use Retomar para um treino existente com checkpoint completo, ou crie um novo projeto com outro nome.', 'Resume an existing run with a complete checkpoint, or create a new project with a different name.'],
+  ['training_preserve training_export', 'Não foi possível verificar os arquivos do treino. Mantenha a VM ligada, consulte os detalhes e verifique os resultados no Drive.', 'Training files could not be verified. Keep the VM running, inspect details and verify Drive results.'],
   ['balance_unavailable', 'Não foi possível consultar os CUs desta conta. Confira a conexão; se persistir, reconecte a conta em Contas.', 'Could not read this account’s CUs. Check your connection; if it persists, reconnect the account in Accounts.'],
   ['account_missing account_not_connected', 'Escolha e conecte uma conta Google na aba Contas.', 'Choose and connect a Google account in Accounts.'],
   ['account_duplicate', 'Esta conta já foi adicionada. Selecione o perfil existente.', 'This account was already added. Select its existing profile.'],

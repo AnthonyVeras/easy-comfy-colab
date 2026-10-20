@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "install_revision": 3,
+  "install_revision": 4,
   "easy_install": {
     "repository": "https://github.com/Tavris1/ComfyUI-Easy-Install.git",
     "branch": "MAC-Linux",

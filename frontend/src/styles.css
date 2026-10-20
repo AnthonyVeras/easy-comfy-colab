@@ -144,3 +144,8 @@ dialog .actions { justify-content: flex-end; margin-top: 25px; }
 @media (max-width: 420px) { .card, .advanced { padding: 18px 14px; } .page-heading { margin-bottom: 23px; } .actions { align-items: stretch; } .actions button { flex: 1 1 auto; } .activity-list li { gap: 10px; flex-wrap: wrap; } .numeric { white-space: normal; } }
 @media (prefers-reduced-motion: no-preference) { button { transition: background-color 100ms ease-out, border-color 100ms ease-out; } }
 @media (forced-colors: active) { :focus-visible { outline-color: Highlight; } button, input, textarea, select, .card, dialog { border-color: CanvasText; } button.primary { background: ButtonFace; color: ButtonText; border-color: ButtonText; } .status-square { border-color: CanvasText; } }
+
+.training-card { overflow-wrap: anywhere; }
+.training-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
+.training-card progress { width: 100%; accent-color: var(--accent, #83b5ff); }
+.training-card .field { display: grid; gap: .5rem; margin: .8rem 0; }

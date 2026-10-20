@@ -238,7 +238,7 @@ class HistoryAndDelegationTests(unittest.TestCase):
         self.controller.session.update(state="ready", account_id=self.account, session_id="owned-session")
         self.controller.companion = Mock()
         self.store.set("preferences", {"idle_minutes": 1})
-        snapshot = {"queue": {"running": 0, "pending": 0}, "downloads": {"items": [], "total": 100}, "cache": {"busy": False}}
+        snapshot = {"queue": {"running": 0, "pending": 0}, "downloads": {"items": [], "total": 100}, "cache": {"busy": False}, "training": {"busy": False, "preserved": True}}
         self.controller.companion.call.return_value = snapshot
         with patch.object(self.controller, "dispatch") as dispatch:
             for busy in (None, True):
@@ -251,6 +251,21 @@ class HistoryAndDelegationTests(unittest.TestCase):
             self.controller.idle_since = time.monotonic() - 120
             self.controller.poll()
             dispatch.assert_called_once_with({"id": "idle-stop", "action": "session.stop", "params": {"account_id": self.account, "session_id": "owned-session"}})
+
+    def test_active_unknown_or_unpreserved_training_prevents_idle_shutdown(self):
+        self.controller.session.update(state="ready", account_id=self.account, session_id="owned-session")
+        self.controller.companion = Mock()
+        self.store.set("preferences", {"idle_minutes": 1})
+        snapshot = {"queue": {"running": 0, "pending": 0}, "downloads": {"busy": False}, "cache": {"busy": False}}
+        self.controller.companion.call.return_value = snapshot
+        with patch.object(self.controller, "dispatch") as dispatch:
+            for state in (None, {}, {"busy": True}, {"busy": False, "preserved": False}):
+                if state is None: snapshot.pop("training", None)
+                else: snapshot["training"] = state
+                self.controller.idle_since = time.monotonic() - 120
+                self.controller.poll()
+                self.assertIsNone(self.controller.idle_since)
+            dispatch.assert_not_called()
 
     def test_old_snapshot_response_is_discarded_after_session_or_companion_changes(self):
         events = []

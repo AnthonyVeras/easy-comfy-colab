@@ -5,10 +5,11 @@ import { errorCode, errorText, phaseText } from './messages';
 import { translate } from './i18n';
 import brandLogo from '../brand/logo-v1.png';
 import LegacyLibrary from './LegacyLibrary';
+import Training from './Training';
 import type { CopyKey } from './i18n';
 import type { AccountUsage, ControllerEvent, Download, DriveWorkflow, HistoryEntry, Language, Metrics, Model, NodePackage, NodeVersion, Paged, Params, Snapshot } from './types';
 
-const pages = ['session', 'models', 'nodes', 'workflows', 'accounts', 'activity', 'settings'] as const;
+const pages = ['session', 'models', 'nodes', 'workflows', 'training', 'accounts', 'activity', 'settings'] as const;
 type Page = typeof pages[number];
 const gpuChoices = ['T4', 'L4', 'A100', 'G4', 'CPU'];
 const categories = ['checkpoints', 'diffusion_models', 'loras', 'vae', 'text_encoders', 'clip', 'clip_vision', 'controlnet', 'upscale_models', 'embeddings', 'unet', 'llm_gguf', 'onnx', 'audio_encoders', 'model_patches'];
@@ -321,7 +322,7 @@ export default function App() {
     const labels: Record<string, CopyKey> = { 'session.start': 'start', 'session.stop': 'stop', 'session.restart': 'restart', 'session.reconnect': 'reconnect', 'session.recovery': 'reconnect', 'session.runtimeSave': 'preserveRuntime', 'session.freeMemory': 'freeMemory', 'account.connect': 'connect', 'account.submitCode': 'authTitle', 'account.importLegacy': 'importLegacy', 'account.remove': 'removeAccount', 'account.credentials': 'credentials', 'download.add': 'addModels', 'download.cancel': 'cancel', 'download.resume': 'resume', 'cache.prepare': 'prepareCache', 'cache.cancel': 'cancelCache', 'cache.clear': 'clearCache', 'node.install': 'install', 'node.update': 'update', 'node.remove': 'removePackage', 'workflow.check': 'checkWorkflow', 'workflow.import': 'importWorkflow', 'legacy.import': 'copyLegacyFile', 'drive.copy': 'copy', 'drive.share': 'share', 'app.preferences': 'preferences' };
     return t(labels[operation ?? ''] ?? 'activityUpdate');
   }
-  const intro: Record<Page, CopyKey> = { session: 'sessionIntro', models: 'modelsIntro', nodes: 'nodesIntro', workflows: 'workflowsIntro', accounts: 'accountsIntro', activity: 'activityIntro', settings: 'settingsIntro' };
+  const intro: Record<Page, CopyKey> = { session: 'sessionIntro', models: 'modelsIntro', nodes: 'nodesIntro', workflows: 'workflowsIntro', training: 'trainingIntro', accounts: 'accountsIntro', activity: 'activityIntro', settings: 'settingsIntro' };
   const stateLabel = pages.includes(session.state as Page) ? t('unknown') : (['idle', 'authorizing', 'allocating', 'preparing', 'starting', 'ready', 'reconnecting', 'stopping', 'error'].includes(session.state) ? (ready && !comfyReady ? t('downloadsReady') : t(session.state as CopyKey)) : t('unknown'));
   const authAccount = data.accounts.find(item => item.id === auth?.account_id);
   const metric = (key: 'balance' | 'rate', suffix = '') => data.metrics[key] == null ? '—' : `${data.metrics[key].toLocaleString(language, { maximumFractionDigits: 2 })}${suffix}`;
@@ -394,6 +395,8 @@ export default function App() {
           {nodeVersions ? <><Pagination page={nodeVersions} noun={t('version')} disabled={!comfyReady || locked} t={t} onPage={offset => void listVersions(nodeId, offset)} />{!nodeVersions.items.length ? <p>{t('noVersions')}</p> : null}</> : null}</form></Card>
           <Card title={t('installedPackages')}><div className="section-toolbar"><p>{t('noPackagesHint')}</p><button disabled={!comfyReady || locked} onClick={() => void listInstalledNodes(installedNodePage?.offset ?? 0)}>{t('refresh')}</button></div>{installedNodes.length ? <div className="package-list">{installedNodes.map(item => <article className="package" key={item.id}><div><span className="eyebrow">{isProtectedNode(item) ? t('basePackage') : t('installed')}</span><h3>{item.name ?? item.id}</h3><small>{t('version')}: {item.version ?? '—'}</small></div>{!isProtectedNode(item) ? <div className="actions"><button disabled={!comfyReady || locked} onClick={() => void listVersions(item.id)}>{t('update')}</button><button disabled={!comfyReady || locked} onClick={() => confirm('node.remove', { package_id: item.id, expected_version: item.version }, 'removePackage', 'removePackageHint', 'remove')}>{t('remove')}</button></div> : null}</article>)}</div> : <Empty title={t('noPackages')} hint={t('noPackagesHint')} />}<Pagination page={installedNodePage ?? { items: initialInstalled, total: Math.max(0, (data.packages_total ?? data.packages.length) - basePackages.length), offset: 0, limit: 50 }} noun={t('packageCount')} disabled={!comfyReady || locked} t={t} onPage={offset => void listInstalledNodes(offset)} /></Card>
         </div>
+
+        <div hidden={page !== 'training'} className="page-content"><Training active={page === 'training'} ready={comfyReady && session.account_id === data.selected_account_id} accountId={data.selected_account_id} sessionId={session.session_id} language={language} locked={locked} /></div>
 
         <div hidden={page !== 'workflows'} className="page-content">
           <Card title={t('driveWorkflows')}><p>{t('driveWorkflowHint')}</p><button disabled={!ready || locked} onClick={() => void listDriveWorkflows(driveWorkflows?.offset ?? 0)}>{t('browseWorkflows')}</button>{driveWorkflows ? <><div className="package-list">{driveWorkflows.items.map(item => <article className="package" key={item.relative_path}><div><h3>{item.name}</h3><small>{formatBytes(item.size, language)}</small></div><button disabled={locked} aria-label={`${t('selectWorkflow')} ${item.name}`} onClick={() => { setWorkflowResult(null); setWorkflowPath(item.relative_path); setWorkflowSource('drive'); }}>{t('selectWorkflow')}</button></article>)}</div><Pagination page={driveWorkflows} noun={t('workflowCount')} disabled={!ready || locked} t={t} onPage={offset => void listDriveWorkflows(offset)} /></> : null}</Card>

@@ -18,7 +18,7 @@ async def admission(request, handler):
         with (STATE / "admission.lock").open("a") as lock:
             try: fcntl.flock(lock, fcntl.LOCK_SH | fcntl.LOCK_NB)
             except BlockingIOError: raise web.HTTPConflict(text="Session is preparing to stop.")
-            if (STATE / "stopping").exists(): raise web.HTTPConflict(text="Session is preparing to stop.")
+            if (STATE / "stopping").exists() or (STATE / "training-active").exists(): raise web.HTTPConflict(text="Session is preparing to stop.")
             return await handler(request)
     return await handler(request)
 
