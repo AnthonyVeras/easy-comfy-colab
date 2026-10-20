@@ -50,7 +50,7 @@ def command(python: str, source: Path):
               "--specpath", str(ROOT / "build"),
               "--paths", str(ROOT), "--paths", str(ROOT / "controller" / "vendor"),
               "--add-data", str(source) + ";."]
-    for module in ("controller.google", "controller.transport", "controller.drive",
+    for module in ("controller.google", "controller.transport", "controller.drive", "controller.training",
                    "controller.import_legacy", "colab_cli.client", "colab_cli.runtime",
                    "colab_cli.consumption", "colab_cli.utils"):
         result.extend(["--hidden-import", module])

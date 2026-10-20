@@ -51,12 +51,12 @@ export async function installTauriBridge(): Promise<void> {
   window.easyComfy = {
     request<T>(action: string, params: Params = {}): Promise<T> {
       if (action === 'shell.pickFile') {
-        if (params.kind !== 'workflow') return Promise.reject(new ControllerError('invalid_file_kind', 'Escolha um workflow JSON. / Select a workflow JSON file.'));
-        return import('@tauri-apps/plugin-dialog').then(({ open }) => open({ multiple: false, directory: false, filters: [{ name: 'ComfyUI workflow', extensions: ['json'] }] })) as Promise<T>;
+        if (!['workflow', 'training-dataset'].includes(String(params.kind))) return Promise.reject(new ControllerError('invalid_file_kind', 'Escolha um workflow JSON. / Select a workflow JSON file.'));
+        return import('@tauri-apps/plugin-dialog').then(({ open }) => open({ multiple: false, directory: false, filters: params.kind === 'training-dataset' ? [{ name: 'Training dataset', extensions: ['zip'] }] : [{ name: 'ComfyUI workflow', extensions: ['json'] }] })) as Promise<T>;
       }
       const id = crypto.randomUUID();
       return new Promise<T>((resolve, reject) => {
-        const timeout = setTimeout(() => { pending.delete(id); reject(new ControllerError('request_timeout', 'A operação não respondeu. Confira a atividade e reconecte. / Check Activity and reconnect.')); }, action === 'legacy.import' ? 1_260_000 : 600_000);
+        const timeout = setTimeout(() => { pending.delete(id); reject(new ControllerError('request_timeout', 'A operação não respondeu. Confira a atividade e reconecte. / Check Activity and reconnect.')); }, ['legacy.import', 'training.import'].includes(action) ? 1_260_000 : 600_000);
         pending.set(id, { resolve: value => resolve(value as T), reject, timeout });
         invoke('controller_request', { request: { id, action, params } }).catch(error => {
           clearTimeout(timeout); pending.delete(id); reject(new ControllerError('controller_unavailable', String(error)));

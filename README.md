@@ -40,3 +40,7 @@ ComfyUI's **Download** and **Download All** missing-model buttons queue work on 
 The runtime uses the reviewed [ComfyUI-Easy-Install MAC-Linux base](https://github.com/Tavris1/ComfyUI-Easy-Install/tree/fa3882893d083dc116ec0c62b9fdcd4ebc91397e): versioned node packages and shipped workflow examples, with the Colab Python/Torch/CUDA stack preserved. The desktop installer script is inspected rather than executed wholesale. `remote/runtime.json` records exact package sources, versions, hashes and compatibility limits. Pending packages are identified in the app; source-only dependencies need a separately tested Linux build before activation. This change creates a new artifact recipe and preserves earlier Drive artifacts.
 
 New code is MIT; third-party code and dependencies retain their own licenses. A public installer release needs the project's Google OAuth configuration and applicable verification.
+
+## MOSS-Image LoRA
+
+A aba nativa **Treinamento LoRA** prepara datasets legendados, treina e retoma projetos pela sessão Colab controlada pelo app. Projetos, pesos e checkpoints persistem no novo Drive. [Uso, requisitos e recuperação / Usage, requirements and recovery](docs/MOSS_TRAINING.md). A integração ainda precisa do primeiro ensaio real de treino no Colab.

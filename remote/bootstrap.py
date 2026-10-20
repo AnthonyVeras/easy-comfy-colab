@@ -642,7 +642,7 @@ def dispatch(request, paths=None):
             config = read_json(paths.state / "session.json")
         return start(paths, config)
     routes = {"freeMemory": ("/free", {"unload_models": True, "free_memory": True}), "stop": ("/stop/prepare", {}), "health": ("/health", None), "report": ("/snapshot", None), "runtime.save": ("/runtime/save", {}), "outputs.prepare": ("/outputs/prepare", {}), "outputs.ack": ("/outputs/ack", request.get("params", {})), "resume": ("/outputs/resume", {})}
-    if action == "freeMemory": return {"released": bool(comfy_json(*routes[action]) is not None)}
+    if action == "freeMemory": return companion_request(paths, "/training/free-memory", {})
     return companion_request(paths, *routes[action])
 
 

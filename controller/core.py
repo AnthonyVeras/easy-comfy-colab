@@ -20,7 +20,7 @@ SESSION_KEYS = {"state", "account_id", "session_id", "phase", "started_at", "com
 PREFERENCES = {"language": "pt-BR", "idle_minutes": 0, "balance_alert": 20, "auto_open": True}
 MODEL_CATEGORIES = {"checkpoints", "diffusion_models", "loras", "vae", "text_encoders", "clip", "clip_vision", "controlnet", "upscale_models", "embeddings", "unet", "llm_gguf", "onnx", "audio_encoders", "model_patches"}
 SECRET_KEYS = {"token", "tokens", "bearer", "bearer_token", "refresh_token", "access_token", "client_secret", "credentials", "authorization"}
-RECORDED_ACTIONS = {"app.preferences", "account.importLegacy", "account.connect", "account.submitCode", "account.select", "account.remove", "account.update", "account.credentials", "session.start", "session.cancel", "session.reconnect", "session.restart", "session.stop", "session.freeMemory", "session.runtimeSave", "download.add", "download.cancel", "download.resume", "cache.prepare", "cache.cancel", "cache.clear", "workflow.check", "workflow.import", "node.install", "node.update", "node.remove", "drive.copy", "drive.share", "legacy.import"}
+RECORDED_ACTIONS = {"app.preferences", "account.importLegacy", "account.connect", "account.submitCode", "account.select", "account.remove", "account.update", "account.credentials", "session.start", "session.cancel", "session.reconnect", "session.restart", "session.stop", "session.freeMemory", "session.runtimeSave", "download.add", "download.cancel", "download.resume", "cache.prepare", "cache.cancel", "cache.clear", "workflow.check", "workflow.import", "node.install", "node.update", "node.remove", "drive.copy", "drive.share", "legacy.import", "training.import", "training.prepare", "training.start", "training.resume", "training.cancel", "training.preserve", "training.export"}
 
 
 def resources():
@@ -225,6 +225,7 @@ class Controller:
                 "metrics": public({**(self.remote_snapshot.get("metrics") or {}), "balance": usage["balance"], "rate": usage["rate"]}),
                 "local_metrics": self.local_monitor.sample(), "cache": public(self.remote_snapshot.get("cache", {"status": "unknown", "busy": None, "items": [], "error": None})),
                 "runtime": public(self.remote_snapshot.get("runtime")),
+                "training": public(self.remote_snapshot.get("training")),
                 "output_delivery": public(self.output_delivery),
                 "downloads_total": self.remote_snapshot.get("downloads", {}).get("total") if isinstance(self.remote_snapshot.get("downloads"), dict) else None,
                 "packages_total": self.remote_snapshot.get("packages_total"),
@@ -810,6 +811,9 @@ class Controller:
         if action in ("drive.copy", "drive.share"):
             from controller.drive import transfer
             return transfer(self.google(), p, action.split(".")[1], self.emit)
+        if action.startswith("training."):
+            from controller.training import handle
+            return handle(self, action, p)
         if action not in {"model.list", "download.list", "download.add", "download.cancel", "download.resume", "cache.prepare", "cache.cancel", "cache.clear", "node.list", "node.catalog", "node.versions", "node.install", "node.update", "node.remove", "workflow.list", "workflow.check", "workflow.import", "legacy.list", "legacy.import"}:
             raise AppError("unknown_action", "This controller action is not supported.")
         remote = self.require_remote()
@@ -900,7 +904,7 @@ class Controller:
         began = time.monotonic()
         action = request.get("action", "invalid") if isinstance(request, dict) else "invalid"
         params = request.get("params", {}) if isinstance(request, dict) and isinstance(request.get("params", {}), dict) else {}
-        account_id = params.get("account_id") or (self.session.get("account_id") if isinstance(action, str) and action.startswith(("session.", "download.", "cache.", "node.", "workflow.", "legacy.")) else None) or self.store.get("selected_account_id")
+        account_id = params.get("account_id") or (self.session.get("account_id") if isinstance(action, str) and action.startswith(("training.", "session.", "download.", "cache.", "node.", "workflow.", "legacy.")) else None) or self.store.get("selected_account_id")
         if action in ("drive.copy", "drive.share"):
             account_id = params.get("source_account_id")
         try:
@@ -986,7 +990,7 @@ class Controller:
                 delivery = self.output_delivery
                 queue = snapshot.get("queue")
                 queue_idle = isinstance(queue, dict) and all(k in queue and isinstance(queue[k], (int, list)) and not isinstance(queue[k], bool) and not queue[k] for k in ("running", "pending"))
-                if self.session.get("output_mode") == "pc" and queue_idle and snapshot.get("pending_outputs") != 0:
+                if self.session.get("output_mode") == "pc" and queue_idle and snapshot.get("training", {}).get("busy") is False and snapshot.get("training", {}).get("preserved") is True and snapshot.get("pending_outputs") != 0:
                     def verify_delivery():
                         if not current() or self.session.get("output_mode") != "pc":
                             raise AppError("session_changed", "The session changed during output delivery. Original VM files were preserved.")
@@ -1025,7 +1029,7 @@ class Controller:
                 self.emit("download", {"downloads": public(snapshot.get("downloads", []))})
                 queue, downloads = snapshot.get("queue"), snapshot.get("downloads", {})
                 # A displayed download page cannot prove that all remote jobs are idle.
-                idle = isinstance(queue, dict) and all(k in queue and isinstance(queue[k], (int, list)) and not isinstance(queue[k], bool) for k in ("running", "pending")) and not queue["running"] and not queue["pending"] and isinstance(downloads, dict) and downloads.get("busy") is False and snapshot.get("cache", {}).get("busy") is False
+                idle = isinstance(queue, dict) and all(k in queue and isinstance(queue[k], (int, list)) and not isinstance(queue[k], bool) for k in ("running", "pending")) and not queue["running"] and not queue["pending"] and isinstance(downloads, dict) and downloads.get("busy") is False and snapshot.get("cache", {}).get("busy") is False and snapshot.get("training", {}).get("busy") is False and snapshot.get("training", {}).get("preserved") is True
                 minutes = self.store.get("preferences", PREFERENCES).get("idle_minutes", 0)
                 if not minutes or not idle:
                     self.idle_since = None

@@ -20,6 +20,7 @@ if __package__:
     from .nodes import Nodes
     from .outputs import Outputs
     from .legacy import Legacy
+    from .training import Training
 else:
     import artifacts
     from bootstrap import MANIFEST, validate_runtime, listening
@@ -29,6 +30,7 @@ else:
     from nodes import Nodes
     from outputs import Outputs
     from legacy import Legacy
+    from training import Training
 
 
 def page(query):
@@ -72,6 +74,7 @@ class Service:
         validate_identity(self.config)
         self.cpu = self.config.get("gpu") == "CPU"
         self.idle = (lambda: True) if self.cpu else queue_idle
+        self.training = Training(self.paths)
         self.outputs = Outputs(self.paths, self.config, self.capture_idle)
         self.cache = Cache(self.paths, self.idle)
         self.cache.reconcile()
@@ -88,7 +91,7 @@ class Service:
         return comfy_json(path, value, headers={"X-Easy-Control": self.config["bearer_token"]})
 
     def capture_idle(self):
-        return self.idle() and (self.cpu or self.nodes.queue_idle())
+        return not self.training.busy and self.idle() and (self.cpu or self.nodes.queue_idle())
 
     def health(self):
         return {**public_identity(self.config), "output_mode": self.config["output_mode"], "mode": "downloads" if self.cpu else "comfy", "remote_ports": {"comfy": None if self.cpu else 8188, "companion": 8190, "mcp": None if self.cpu else 8189}, "paths": {"root": str(self.paths.root), "models": str(self.paths.models), "workflows": str(self.paths.drive / "user/default/workflows"), "outputs": str(self.outputs.root)}}
@@ -140,7 +143,7 @@ class Service:
             if self.catalog is None or time.monotonic()-self.catalog_at > 30:
                 self.catalog = self.library(); self.catalog_at = time.monotonic()
             catalog = self.catalog
-        return {"identity": public_identity(self.config), "output_mode":self.config["output_mode"], "queue": queue, "metrics": metrics, "hardware": hardware, "downloads": self.downloads.snapshot(), "models": catalog, "cache": self.cache.snapshot(), "packages": packages, "packages_total": len(node_state)+len(packages)-min(100,len(node_state)), "runtime": {"installed": self.cpu or (self.paths.state / "installed.json").is_file(), "verified": None, "last_saved": (self.paths.state / "runtime-preserved.json").is_file(), "operation": read_json(self.paths.state / "operation-status.json", None)}, "pending_outputs": self.pending_outputs(), "paused": (self.paths.state / "stopping").exists()}
+        return {"identity": public_identity(self.config), "output_mode":self.config["output_mode"], "queue": queue, "metrics": metrics, "hardware": hardware, "downloads": self.downloads.snapshot(), "models": catalog, "cache": self.cache.snapshot(), "packages": packages, "packages_total": len(node_state)+len(packages)-min(100,len(node_state)), "runtime": {"installed": self.cpu or (self.paths.state / "installed.json").is_file(), "verified": None, "last_saved": (self.paths.state / "runtime-preserved.json").is_file(), "operation": read_json(self.paths.state / "operation-status.json", None)}, "training": self.training.snapshot(), "pending_outputs": self.pending_outputs(), "paused": (self.paths.state / "stopping").exists()}
 
     def switch_outputs(self, data):
         old, target = self.config["output_mode"], data.get("output_mode")
@@ -148,6 +151,7 @@ class Service:
             raise Fault("output_mode_conflict", "Output mode changed during restart. Reconnect and verify the current destination.")
         if not (self.paths.state / "stopping").exists() or listening(8188):
             raise Fault("output_switch_not_ready", "Pause admission and stop the owned ComfyUI process before switching its output destination.")
+        self.training.require_safe()
         if self.downloads.busy or self.cache.snapshot()["busy"] or self.nodes.busy:
             raise Fault("runtime_busy", "Finish background operations before switching output destinations.")
         # The admission marker and closed Comfy port make the source stable; its queue API is now offline.
@@ -184,6 +188,7 @@ class Service:
         return {"items": rows, "total": total, "offset": offset, "limit": limit}
 
     def require_idle(self):
+        self.training.require_safe()
         if self.downloads.busy or self.cache.snapshot()["busy"] or self.nodes.busy:
             raise Fault("runtime_busy", "Finish or cancel downloads, cache preparation and node operations before preserving or stopping the VM.")
         if not self.idle(): raise Fault("generation_busy", "Wait for the generation queue before this operation.")
@@ -313,6 +318,7 @@ class Service:
             offset, limit = page(query)
             if route == "/health": return self.health()
             if route == "/snapshot": return self.snapshot()
+            if route == "/training": return self.training.snapshot()
             if route == "/models": return self.library(offset, limit)
             if route == "/downloads": return self.downloads.snapshot(offset, limit)
             if route == "/workflows": return self.workflow_list(offset, limit)
@@ -334,6 +340,25 @@ class Service:
         was_paused = (self.paths.state / "stopping").exists()
         try:
             if route == "/credentials/models": return self.update_model_credentials(data)
+            if route == "/training/free-memory":
+                self.require_idle()
+                return {"released": bool(comfy_json("/free", {"unload_models": True, "free_memory": True}) is not None)}
+            if route == "/training/cancel": return self.training.cancel()
+            if route == "/training/preserve": return self.training.preserve()
+            if route == "/training/export":
+                result = self.training.export(data.get("project_id"))
+                with self.catalog_lock: self.catalog = None
+                return result
+            if route in {"/training/prepare", "/training/start", "/training/resume"}:
+                if self.cpu: raise Fault("gpu_required", "Start an owned GPU session to train MOSS.")
+                if was_paused: raise Fault("session_paused", "Resume the session before training.")
+                self.require_idle()
+                try:
+                    with self.outputs.barrier():
+                        self.require_idle()
+                        comfy_json("/free", {"unload_models": True, "free_memory": True})
+                        return self.training.launch(route.rsplit("/", 1)[1], data)
+                finally: self.outputs.resume()
             if route == "/outputs/resume": return self.outputs.resume()
             if route == "/outputs/switch": return self.switch_outputs(data)
             if route == "/outputs/delivery":
@@ -354,6 +379,7 @@ class Service:
                 self.require_idle()
                 with self.outputs.barrier(): return {"paused": True, "safe_to_restart": True}
             if was_paused: raise Fault("session_paused", "Resume this session before adding downloads, cache work or node changes.")
+            self.training.require_safe()
             if route == "/comfy/downloads": return self.comfy_download(data)
             if route == "/legacy/import":
                 self.require_idle()

@@ -30,3 +30,13 @@ The production npm dependency audit reports no known advisories. Eight moderate 
 The installed 0.1.0 preview uses the user's separate application data and starts idle, without allocating a VM. Tauri measured 2.636 seconds opening, 207.652 MiB peak private memory and 0.116% mean machine CPU; Electron measured 1.123 seconds, 216.512 MiB and 0.041%. Both used isolated empty data and the whole process tree. Personal account data was checked only after measurement. Both installers are unsigned.
 
 The user subsequently limited work to actions without monetary cost. No additional cloud allocations or paid services will run under that instruction. All project allocations are safely closed; remote acceptance resumes only after authorization. Local builds, resource measurements, a desktop shortcut and opening the app remain authorized.
+
+## 2026-10-20 — MOSS LoRA training integration
+
+Native PT-BR/EN training page, reusable Drive projects, ZIP upload with SHA-256 verification, pinned isolated trainer, offline text/latent caches, explicit start/resume/cancel, actual metric/ETA display and verified ComfyUI export are implemented. Admission and shutdown gates include active/unpreserved training, including children surviving a worker exit. Training output remains on the new Drive even with PC image delivery. No legacy runtime, local ComfyUI or running desktop LoRA was changed.
+
+Validation: controller 124 tests passed; remote 158 tests passed (3 platform-dependent skips); frontend 36 tests passed; typecheck/build and 3 native bridge tests passed. Windows Electron package built and its packaged sidecar passed isolated UTF-8/snapshot/preferences smoke checks (~2.65 s first snapshot). Native app was opened at the user's request. Rust/Cargo build and real Colab training were not run. No cloud VM was allocated or cloud CU spent by these checks.
+
+First native login is pending the user's creation of a Google Desktop OAuth client; the checkout contains no private OAuth configuration. The existing project requires that client JSON before opening authorization. The new Linux trainer environment remains pending its first authorized GPU run and benchmark. Dependency top-level pins do not constitute a full transitive Linux lock.
+
+Documentation fallback: the dedicated Obsidian MCP configuration `.private/vault.json` was unavailable in this clean checkout and no dedicated Obsidian connector was exposed. Feature/contract/status/handoff documentation is therefore recorded in the repository; the unrelated vault was not used.
